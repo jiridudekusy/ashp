@@ -56,16 +56,23 @@ All GUI communication goes through the REST API + SSE. No direct DB or proxy acc
 
 Go and Node communicate via **JSON over Unix socket** (newline-delimited JSON messages).
 
+Every message includes a `msg_id` field (UUID). Request-response pairs are correlated via `msg_id` — a response references the original `msg_id` in a `ref` field.
+
 **Node → Go:**
 - `rules.reload` — rules changed, reload from Node
 - `config.update` — configuration changed
-- `approval.resolve` — user approved/rejected a held request
+- `approval.resolve` — user approved/rejected a held request (includes `ref` to original `approval.needed` msg_id)
 
 **Go → Node:**
 - `request.logged` — request was processed
 - `request.blocked` — request was denied
-- `request.held` — request is waiting for approval (Mode B)
-- `approval.needed` — approval required, notify user
+- `approval.needed` — request is held (Mode B) or queued (Mode C), approval required. Includes request metadata for display in GUI.
+
+**Reconnection behavior:** On socket disconnect, both sides attempt reconnect with exponential backoff (100ms, 200ms, 400ms, ..., max 10s). During disconnection:
+- Go continues serving with cached rules; held requests awaiting approval timeout after their configured timeout period
+- Go buffers events in a bounded ring buffer (default 10,000 messages); oldest messages dropped if buffer full
+- On reconnect, Go re-announces any still-held requests via fresh `approval.needed` messages
+- Node sends `rules.reload` on reconnect to ensure Go's cache is current
 
 **Why Unix socket:** No TCP overhead, file-system permission security, no port conflicts, works in both sidecar and gateway deployments.
 
@@ -95,7 +102,7 @@ Go and Node communicate via **JSON over Unix socket** (newline-delimited JSON me
 
 ## Request Flow Modes
 
-Configurable globally or per-rule via `on_no_match` override:
+Configurable globally via `default_behavior` in config. Rules can override this for requests matching their `url_pattern` but not their `methods` list (via the `default_behavior` column on the rule):
 
 ### Mode A: Deny & Log
 Instant 403. Request logged as blocked. Strict lockdown — use for production.
@@ -113,7 +120,7 @@ Detailed flow:
 7. Go: releases held request → forwards to destination
 
 ### Mode C: Deny & Queue
-Instant 403. Request logged and added to approval queue. User reviews later, approves, optionally creates rule. Next identical request passes.
+Instant 403. Request logged and added to approval queue. User reviews later, approves, optionally creates allow rule. When a rule is created from approval, subsequent requests matching that rule pass automatically. "Identical" is defined by rule match — same URL pattern + method combination.
 
 ## Data Model
 
@@ -137,7 +144,7 @@ Instant 403. Request logged and added to approval queue. User reviews later, app
 | agent_id | TEXT NULL | Reserved for future per-agent rules |
 | log_request_body | TEXT | `full`, `truncate:N`, or `none` |
 | log_response_body | TEXT | `full`, `truncate:N`, or `none` |
-| on_no_match | TEXT NULL | Per-rule override: `deny`, `hold`, `queue` |
+| default_behavior | TEXT NULL | Override global default_behavior for requests matching this rule's url_pattern but NOT its methods list |
 | enabled | BOOLEAN | |
 
 #### `request_log`
@@ -155,7 +162,7 @@ Instant 403. Request logged and added to approval queue. User reviews later, app
 | duration_ms | INTEGER | |
 | rule_id | INTEGER FK NULL | Which rule matched |
 | decision | TEXT | `allowed`, `denied`, `held`, `queued` |
-| agent_id | TEXT NULL | Reserved for future |
+| agent_id | TEXT NULL | Populated from Basic Auth username. Reserved for future rule evaluation. |
 
 #### `approval_queue`
 | Column | Type | Notes |
@@ -165,7 +172,10 @@ Instant 403. Request logged and added to approval queue. User reviews later, app
 | status | TEXT | `pending`, `approved`, `rejected` |
 | created_at | DATETIME | |
 | resolved_at | DATETIME NULL | |
+| resolved_by | TEXT NULL | Who approved/rejected (for audit) |
 | create_rule | BOOLEAN | Auto-create allow rule on approval |
+| suggested_pattern | TEXT NULL | Auto-generated url_pattern for the rule (derived from request URL) |
+| suggested_methods | TEXT NULL | JSON array of methods for the auto-created rule |
 
 ### File Storage Layout
 
@@ -174,7 +184,7 @@ data/
   ashp.db                    ← SQLCipher encrypted database
   ca/
     root.crt                 ← ASHP CA certificate (distribute to agents)
-    root.key                 ← CA private key (encrypted)
+    root.key                 ← CA private key (encrypted with ASHP_CA_KEY)
   logs/
     2026/
       03/
@@ -184,16 +194,27 @@ data/
           15-001.log.enc     ← chunk if >100MB
 ```
 
+### Log File Encryption
+
+Log files use **per-record encryption** with AES-256-GCM. Each record is independently encrypted and decryptable, enabling random-access reads by offset without decrypting the entire file.
+
+Encryption key: derived from a master log encryption key via HKDF, using the record offset as context. The master key is configured via `env:ASHP_LOG_KEY` environment variable (separate from DB encryption key).
+
 ### Log File Record Format
 
+Each record in the hourly log file:
+
 ```
-[4 bytes: record length]
-[JSON metadata header]
-[raw body bytes]
-[4 bytes: record length]    ← repeated at end for reverse seeking
+[4 bytes: encrypted record length (plaintext)]
+[12 bytes: GCM nonce]
+[encrypted payload: JSON metadata header + body bytes]
+[16 bytes: GCM auth tag]
+[4 bytes: encrypted record length (plaintext)]    ← repeated for reverse seeking
 ```
 
-SQLite `request_body_ref` stores `logs/2026/03/15/14.log.enc:8192:4096` (file path : byte offset : byte length).
+The 4-byte length prefix and suffix are plaintext (not sensitive — just byte counts) to allow seeking without decryption. The payload (metadata + body) is encrypted.
+
+SQLite `request_body_ref` stores `logs/2026/03/15/14.log.enc:8192:4096` (file path : byte offset : total record length). To read a specific body, seek to offset, read length bytes, decrypt the payload.
 
 ### DAO Pattern
 
@@ -238,7 +259,7 @@ All endpoints require `Authorization: Bearer <token>` (configured in `ashp.json`
 
 | Method | Endpoint | Notes |
 |--------|----------|-------|
-| GET | `/api/logs` | List logs. Query: `?from=&to=&method=&url=&decision=&limit=50&offset=0` |
+| GET | `/api/logs` | List logs. Query: `?from=&to=&method=&url=&decision=&limit=50&offset=0`. Dates in ISO 8601 format. |
 | GET | `/api/logs/:id` | Get log detail |
 | GET | `/api/logs/:id/request-body` | Stream decrypted request body |
 | GET | `/api/logs/:id/response-body` | Stream decrypted response body |
@@ -252,7 +273,7 @@ All endpoints require `Authorization: Bearer <token>` (configured in `ashp.json`
 
 ### SSE Events
 
-`GET /api/events` — Server-Sent Events stream.
+`GET /api/events` — Server-Sent Events stream. Supports `Last-Event-ID` header for reconnection — on reconnect, the server replays missed events from a bounded in-memory buffer (default 1,000 events).
 
 Events:
 - `request.allowed` — request passed through
@@ -298,18 +319,32 @@ Events:
     "path": "data/ashp.db",
     "encryption_key": "env:ASHP_DB_KEY"
   },
+  "encryption": {
+    "log_key": "env:ASHP_LOG_KEY",
+    "ca_key": "env:ASHP_CA_KEY"
+  },
   "webhooks": [
     {
       "url": "https://hooks.slack.com/...",
-      "events": ["approval.needed"]
+      "events": ["approval.needed"],
+      "secret": "env:ASHP_WEBHOOK_SECRET",
+      "timeout_ms": 5000,
+      "retries": 3
     }
   ]
 }
 ```
 
-All settings can be overridden via CLI flags. Config file is read at startup; changes require restart (or SIGHUP for reload).
+All settings can be overridden via CLI flags. Config file is read at startup. SIGHUP is sent to the Node process, which reloads config and forwards relevant changes to Go proxy core via `config.update` IPC message. Hot-reloadable settings: rules source, logging config, webhooks, default_behavior. Settings requiring restart: listen addresses, auth tokens, database path, encryption keys.
 
-DB encryption key uses `env:` prefix to reference environment variable — never stored in the config file itself.
+Encryption keys use `env:` prefix to reference environment variables — never stored in the config file itself. Three separate keys:
+- `ASHP_DB_KEY` — SQLCipher database encryption
+- `ASHP_LOG_KEY` — log file record encryption (AES-256-GCM)
+- `ASHP_CA_KEY` — CA private key encryption
+
+On first run, if no CA exists, ASHP generates a new root CA certificate and encrypts the private key with `ASHP_CA_KEY`.
+
+Webhook delivery includes HMAC-SHA256 signature in `X-ASHP-Signature` header (using the webhook's `secret`). Payload format is JSON matching the SSE event structure. Delivery timeout and retry count are configurable per webhook.
 
 ### rules.json (static rules file)
 
@@ -428,10 +463,10 @@ Single command starts proxy core, management API, and GUI.
 ## Security
 
 ### Data at Rest
-- SQLite encrypted via SQLCipher (AES-256)
-- Log files encrypted with AES-256-GCM per chunk
-- CA private key encrypted on disk
-- DB encryption key via environment variable, never in config file
+- SQLite encrypted via SQLCipher (AES-256), key from `ASHP_DB_KEY` env var
+- Log files encrypted with AES-256-GCM per record, key derived from `ASHP_LOG_KEY` env var
+- CA private key encrypted on disk with `ASHP_CA_KEY` env var
+- No encryption keys stored in config files
 
 ### Access Control
 - Proxy: Basic Auth per agent (`Proxy-Authorization`)
