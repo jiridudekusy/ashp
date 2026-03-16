@@ -22,7 +22,7 @@ export default function approvalsRoutes({ approvalQueueDAO, rulesDAO, config, ip
       });
       if (!result) return res.status(404).json({ error: 'Approval not found or already resolved' });
 
-      ipc.send({ type: 'approval.resolve', ref: result.ipc_msg_id, action });
+      ipc.send({ type: 'approval.resolve', ref: result.ipc_msg_id, data: { action } });
 
       if (create_rule && result.suggested_pattern) {
         const methods = result.suggested_methods ? JSON.parse(result.suggested_methods) : [];

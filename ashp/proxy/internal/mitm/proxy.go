@@ -138,11 +138,12 @@ func New(cfg Config) *Proxy {
 			if p.holdRequest != nil {
 				holdData := map[string]interface{}{
 					"agent_id": agentID, "url": fullURL, "method": req.Method,
+					"decision": "held",
 					"suggested_pattern": suggestPattern(fullURL),
 					"suggested_methods": []string{req.Method},
 				}
 				raw, _ := json.Marshal(holdData)
-				holdMsg := ipc.Message{Type: "approval.needed", Data: raw}
+				holdMsg := ipc.Message{Type: "approval.needed", MsgID: ipc.GenerateID(), Data: raw}
 				approved := p.holdRequest(holdMsg)
 				if approved {
 					ctx.UserData = map[string]interface{}{"agent_id": agentID, "url": fullURL}
