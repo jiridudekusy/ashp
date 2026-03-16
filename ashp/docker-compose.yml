@@ -1,0 +1,31 @@
+services:
+  ashp:
+    build: .
+    ports:
+      - "8080:8080"
+      - "3000:3000"
+    volumes:
+      - ./data:/app/data
+      - ./ashp.json:/app/ashp.json:ro
+      - ./rules.json:/app/rules.json:ro
+    environment:
+      - ASHP_DB_KEY=dev-db-key-change-in-production
+      - ASHP_LOG_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      - ASHP_CA_KEY=dev-ca-key-change-in-production
+
+  ashp-dev:
+    profiles: ["dev"]
+    build: .
+    ports:
+      - "8080:8080"
+      - "3000:3000"
+      - "5173:5173"
+    volumes:
+      - ./server/src:/app/server/src
+      - ./data:/app/data
+      - ./ashp.json:/app/ashp.json:ro
+    environment:
+      - ASHP_DB_KEY=dev-db-key
+      - ASHP_LOG_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      - ASHP_CA_KEY=dev-ca-key
+    command: node --watch server/src/index.js --config /app/ashp.json
