@@ -87,6 +87,8 @@ export async function startServer(flags = {}) {
   if (config.proxy.hold_timeout) proxyArgs.push('--hold-timeout', String(config.proxy.hold_timeout));
   if (config.encryption?.ca_key) proxyArgs.push('--ca-pass', config.encryption.ca_key);
   if (config.encryption?.log_key) proxyArgs.push('--log-key', config.encryption.log_key);
+  proxyArgs.push('--ca-dir', resolve(dataDir, 'ca'));
+  proxyArgs.push('--log-dir', resolve(dataDir, 'logs'));
 
   const proxyManager = new ProxyManager(proxyBinPath, proxyArgs, { onRestart: async () => {
     const rules = await rulesDAO.list();
