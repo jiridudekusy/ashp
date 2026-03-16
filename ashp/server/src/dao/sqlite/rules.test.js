@@ -1,6 +1,6 @@
 import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdirSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createConnection } from './connection.js';
@@ -10,7 +10,7 @@ describe('SqliteRulesDAO', () => {
   let dir, db, dao;
 
   beforeEach(() => {
-    dir = mkdirSync(join(tmpdir(), 'ashp-test-' + Date.now()), { recursive: true });
+    dir = mkdtempSync(join(tmpdir(), 'ashp-test-'));
     db = createConnection(join(dir, 'test.db'), 'test-key');
     dao = new SqliteRulesDAO(db);
   });

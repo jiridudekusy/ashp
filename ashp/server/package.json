@@ -3,13 +3,16 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22.0.0" },
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "scripts": {
-    "test": "node --test src/**/*.test.js",
+    "test": "node --test 'src/**/*.test.js'",
     "dev": "node --watch src/index.js"
   },
   "dependencies": {
     "@journeyapps/sqlcipher": "^5.3.1",
+    "better-sqlite3": "^12.8.0",
     "express": "^5.1.0"
   }
 }

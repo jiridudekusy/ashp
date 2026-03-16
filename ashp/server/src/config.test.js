@@ -1,6 +1,6 @@
 import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { loadConfig } from './config.js';
@@ -9,7 +9,7 @@ describe('config', () => {
   let dir;
 
   beforeEach(() => {
-    dir = mkdirSync(join(tmpdir(), 'ashp-test-' + Date.now()), { recursive: true });
+    dir = mkdtempSync(join(tmpdir(), 'ashp-test-'));
   });
 
   afterEach(() => {
