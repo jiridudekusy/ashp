@@ -30,7 +30,8 @@ func setupProxy(t *testing.T) (*Proxy, string) {
 		LogDir:    filepath.Join(dir, "logs"),
 		LogKey:    logKey,
 	})
-	ln := p.Start("127.0.0.1:0")
+	ln, err := p.Start("127.0.0.1:0")
+	if err != nil { t.Fatal(err) }
 	return p, "http://" + ln.Addr().String()
 }
 

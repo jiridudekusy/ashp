@@ -2,13 +2,14 @@ import net from 'node:net';
 import { frame, parseFrames } from './protocol.js';
 
 export class IPCServer {
-  #socketPath; #server; #client = null; #onMessage;
+  #socketPath; #server; #client = null; #onMessage; #onConnect;
   #buffer = []; #bufferSize;
   #partial = '';
 
-  constructor(socketPath, { onMessage, bufferSize = 10000 } = {}) {
+  constructor(socketPath, { onMessage, onConnect, bufferSize = 10000 } = {}) {
     this.#socketPath = socketPath;
     this.#onMessage = onMessage || (() => {});
+    this.#onConnect = onConnect || (() => {});
     this.#bufferSize = bufferSize;
   }
 
@@ -20,6 +21,7 @@ export class IPCServer {
         // Flush buffered messages
         for (const msg of this.#buffer) socket.write(frame(msg));
         this.#buffer = [];
+        this.#onConnect();
 
         socket.on('data', (chunk) => {
           const { messages, remainder } = parseFrames(this.#partial + chunk.toString());

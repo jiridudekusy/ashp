@@ -2,8 +2,11 @@ package mitm
 
 import (
 	"crypto/tls"
+	"encoding/json"
 	"net"
 	"net/http"
+	"regexp"
+	"strings"
 
 	"github.com/elazarl/goproxy"
 	"github.com/jdk/ashp/proxy/internal/auth"
@@ -46,13 +49,20 @@ func New(cfg Config) *Proxy {
 		holdRequest:     cfg.HoldRequest,
 	}
 
-	// Set up MITM for CONNECT
+	// Set up MITM for CONNECT — authenticate at CONNECT time and store agentID
 	gp.OnRequest().HandleConnect(goproxy.FuncHttpsHandler(
 		func(host string, ctx *goproxy.ProxyCtx) (*goproxy.ConnectAction, string) {
+			// Authenticate on CONNECT request (has Proxy-Authorization)
+			agentID, ok := p.auth.Authenticate(ctx.Req)
+			if !ok {
+				return goproxy.RejectConnect, host
+			}
+			ctx.UserData = agentID // carry agentID through to MITM'd requests
 			return &goproxy.ConnectAction{
 				Action: goproxy.ConnectMitm,
 				TLSConfig: func(host string, ctx *goproxy.ProxyCtx) (*tls.Config, error) {
-					cert, err := ca.SignHost(cfg.CA.Leaf, cfg.CA.PrivateKey, host)
+					hostname, _, _ := strings.Cut(host, ":")
+					cert, err := ca.SignHost(cfg.CA.Leaf, cfg.CA.PrivateKey, hostname)
 					if err != nil {
 						return nil, err
 					}
@@ -64,22 +74,54 @@ func New(cfg Config) *Proxy {
 
 	// Request handler
 	gp.OnRequest().DoFunc(func(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Request, *http.Response) {
-		agentID, ok := p.auth.Authenticate(req)
-		if !ok {
-			return req, goproxy.NewResponse(req, goproxy.ContentTypeText, 407, "Proxy Authentication Required")
+		// For MITM'd HTTPS requests, agentID was set during CONNECT
+		var agentID string
+		if id, ok := ctx.UserData.(string); ok {
+			agentID = id
+		} else {
+			// Plain HTTP request — authenticate from header
+			var authed bool
+			agentID, authed = p.auth.Authenticate(req)
+			if !authed {
+				return req, goproxy.NewResponse(req, goproxy.ContentTypeText, 407, "Proxy Authentication Required")
+			}
 		}
 		req.Header.Del("Proxy-Authorization")
 
+		// Build the full URL for rule matching
+		// goproxy sets req.URL with full scheme+host for CONNECT'd requests
 		fullURL := req.URL.String()
+		// If URL is relative (path-only), reconstruct from Host header
+		if req.URL.Scheme == "" {
+			scheme := "https"
+			if req.TLS == nil {
+				scheme = "http"
+			}
+			host := req.Host
+			// Strip default ports so rules can match without specifying ports
+			host = strings.TrimSuffix(host, ":443")
+			host = strings.TrimSuffix(host, ":80")
+			fullURL = scheme + "://" + host + req.URL.RequestURI()
+		} else {
+			// Strip default ports from absolute URLs too
+			hostname := req.URL.Hostname()
+			port := req.URL.Port()
+			if (req.URL.Scheme == "https" && port == "443") || (req.URL.Scheme == "http" && port == "80") {
+				fullURL = req.URL.Scheme + "://" + hostname + req.URL.RequestURI()
+			}
+		}
 		rule := p.evaluator.Match(fullURL, req.Method)
 
 		if rule != nil && rule.Action == "deny" {
+			p.sendIPC("request.blocked", map[string]interface{}{
+				"agent_id": agentID, "url": fullURL, "method": req.Method, "decision": "denied", "reason": "rule_deny",
+			})
 			return req, goproxy.NewResponse(req, goproxy.ContentTypeText, 403, "Forbidden by proxy rule")
 		}
 
 		behavior := p.defaultBehavior
 		if rule != nil && rule.Action == "allow" {
-			ctx.UserData = map[string]interface{}{"agent_id": agentID, "rule": rule}
+			ctx.UserData = map[string]interface{}{"agent_id": agentID, "url": fullURL}
 			return req, nil
 		}
 		if rule != nil && rule.DefaultBehavior != "" {
@@ -88,33 +130,101 @@ func New(cfg Config) *Proxy {
 
 		switch behavior {
 		case "deny":
+			p.sendIPC("request.blocked", map[string]interface{}{
+				"agent_id": agentID, "url": fullURL, "method": req.Method, "decision": "denied", "reason": "default_deny",
+			})
 			return req, goproxy.NewResponse(req, goproxy.ContentTypeText, 403, "Forbidden by default policy")
 		case "hold":
 			if p.holdRequest != nil {
-				holdMsg := ipc.Message{Type: "approval.needed"}
+				holdData := map[string]interface{}{
+					"agent_id": agentID, "url": fullURL, "method": req.Method,
+					"suggested_pattern": suggestPattern(fullURL),
+					"suggested_methods": []string{req.Method},
+				}
+				raw, _ := json.Marshal(holdData)
+				holdMsg := ipc.Message{Type: "approval.needed", Data: raw}
 				approved := p.holdRequest(holdMsg)
 				if approved {
-					ctx.UserData = map[string]interface{}{"agent_id": agentID, "rule": rule}
+					ctx.UserData = map[string]interface{}{"agent_id": agentID, "url": fullURL}
 					return req, nil
 				}
+				p.sendIPC("request.blocked", map[string]interface{}{
+					"agent_id": agentID, "url": fullURL, "method": req.Method, "decision": "denied", "reason": "hold_denied",
+				})
 				return req, goproxy.NewResponse(req, goproxy.ContentTypeText, 504, "Request denied or timed out awaiting approval")
 			}
+			p.sendIPC("request.blocked", map[string]interface{}{
+				"agent_id": agentID, "url": fullURL, "method": req.Method, "decision": "denied", "reason": "default_deny",
+			})
 			return req, goproxy.NewResponse(req, goproxy.ContentTypeText, 403, "Forbidden by default policy (hold not available)")
 		case "queue":
+			p.sendIPC("request.blocked", map[string]interface{}{
+				"agent_id": agentID, "url": fullURL, "method": req.Method, "decision": "denied", "reason": "queued",
+			})
 			return req, goproxy.NewResponse(req, goproxy.ContentTypeText, 403, "Forbidden by default policy (queued for review)")
 		default:
+			p.sendIPC("request.blocked", map[string]interface{}{
+				"agent_id": agentID, "url": fullURL, "method": req.Method, "decision": "denied", "reason": "default_deny",
+			})
 			return req, goproxy.NewResponse(req, goproxy.ContentTypeText, 403, "Forbidden by default policy")
 		}
+	})
+
+	// Response handler — send request.logged for allowed requests
+	gp.OnResponse().DoFunc(func(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Response {
+		if resp == nil {
+			return resp
+		}
+		ud, ok := ctx.UserData.(map[string]interface{})
+		if !ok {
+			return resp
+		}
+		agentID, _ := ud["agent_id"].(string)
+		reqURL, _ := ud["url"].(string)
+		if agentID != "" && reqURL != "" {
+			p.sendIPC("request.logged", map[string]interface{}{
+				"agent_id":        agentID,
+				"url":             reqURL,
+				"method":          ctx.Req.Method,
+				"decision":        "allowed",
+				"response_status": resp.StatusCode,
+				"status_code":     resp.StatusCode,
+			})
+		}
+		return resp
 	})
 
 	return p
 }
 
-func (p *Proxy) Start(addr string) net.Listener {
-	ln, _ := net.Listen("tcp", addr)
+func (p *Proxy) Start(addr string) (net.Listener, error) {
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		return nil, err
+	}
 	p.ln = ln
 	go http.Serve(ln, p.gp)
-	return ln
+	return ln, nil
+}
+
+func (p *Proxy) sendIPC(msgType string, data map[string]interface{}) {
+	if p.ipc == nil {
+		return
+	}
+	raw, _ := json.Marshal(data)
+	p.ipc.Send(ipc.Message{Type: msgType, Data: raw})
+}
+
+// suggestPattern generates a regex pattern from a URL (scheme + host + path prefix)
+func suggestPattern(fullURL string) string {
+	// Extract scheme://host/path and create a pattern
+	re := regexp.MustCompile(`^(https?://[^/]+)(/[^?#]*)?`)
+	m := re.FindStringSubmatch(fullURL)
+	if len(m) < 2 {
+		return regexp.QuoteMeta(fullURL)
+	}
+	host := regexp.QuoteMeta(m[1])
+	return "^" + host + "/.*$"
 }
 
 func (p *Proxy) Stop() {

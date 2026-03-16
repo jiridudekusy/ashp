@@ -41,7 +41,17 @@ export async function startServer(flags = {}) {
   const logKey = config.encryption?.log_key ? Buffer.from(config.encryption.log_key, 'hex') : null;
 
   const ipc = new IPCServer(socketPath, {
+    onConnect: async () => {
+      try {
+        const rules = await rulesDAO.list();
+        // rules sent to proxy on connect
+        ipc.send({ type: 'rules.reload', data: rules });
+      } catch (err) {
+        console.error('[IPC] onConnect error:', err.message);
+      }
+    },
     onMessage: async (msg) => {
+      try {
       if (msg.type === 'request.logged') {
         await requestLogDAO.insert(msg.data);
         events.emit('request.allowed', msg.data);
@@ -59,6 +69,9 @@ export async function startServer(flags = {}) {
         events.emit('approval.needed', { ...msg.data, log_id: logEntry.id });
         webhooks.dispatch('approval.needed', msg.data);
       }
+      } catch (err) {
+        console.error(`IPC onMessage error (${msg.type}):`, err.message);
+      }
     },
   });
   await ipc.start();
@@ -69,7 +82,10 @@ export async function startServer(flags = {}) {
     '--socket', socketPath,
     '--listen', config.proxy.listen,
     '--auth', JSON.stringify(config.proxy.auth || {}),
-  ], { onRestart: () => ipc.send({ type: 'rules.reload' }) });
+  ], { onRestart: async () => {
+    const rules = await rulesDAO.list();
+    ipc.send({ type: 'rules.reload', data: rules });
+  }});
 
   // Express app
   const app = express();
@@ -96,13 +112,14 @@ export async function startServer(flags = {}) {
   });
 
   // SIGHUP reloads config
-  const sighupHandler = () => {
+  const sighupHandler = async () => {
     try {
       const newConfig = loadConfig(flags);
       webhooks.reload(newConfig.webhooks || []);
       if (config.rules.source === 'file' && rulesDAO.reload) rulesDAO.reload();
       ipc.send({ type: 'config.update', data: { default_behavior: newConfig.default_behavior } });
-      ipc.send({ type: 'rules.reload' });
+      const currentRules = await rulesDAO.list();
+      ipc.send({ type: 'rules.reload', data: currentRules });
       Object.assign(config, newConfig);
     } catch (err) {
       console.error('SIGHUP reload failed:', err.message);
@@ -126,6 +143,10 @@ if (process.argv[1] === import.meta.filename) {
     flags[process.argv[i].replace(/^--/, '')] = process.argv[i + 1];
   }
   startServer(flags).then(({ server }) => {
-    console.log(`ASHP management API listening on ${server.address().address}:${server.address().port}`);
+    const addr = server.address();
+    if (addr) console.log(`ASHP management API listening on ${addr.address}:${addr.port}`);
+  }).catch(err => {
+    console.error('Failed to start:', err.message);
+    process.exit(1);
   });
 }

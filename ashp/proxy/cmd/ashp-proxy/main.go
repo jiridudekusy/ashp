@@ -142,7 +142,11 @@ func main() {
 		IPC: ipcClient, DefaultBehavior: *defaultBehavior,
 		HoldRequest: holdRequestFn,
 	})
-	ln := p.Start(*listen)
+	ln, err := p.Start(*listen)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to listen on %s: %v\n", *listen, err)
+		os.Exit(1)
+	}
 	fmt.Fprintf(os.Stderr, "ASHP proxy listening on %s\n", ln.Addr())
 
 	sig := make(chan os.Signal, 1)
