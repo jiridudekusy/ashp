@@ -1,0 +1,23 @@
+{
+  "rules": [
+    {
+      "name": "Allow GitHub API",
+      "url_pattern": "^https://api\\.github\\.com/.*$",
+      "methods": ["GET", "POST", "PUT", "PATCH", "DELETE"],
+      "action": "allow", "priority": 100,
+      "log_request_body": "full", "log_response_body": "truncate:65536"
+    },
+    {
+      "name": "Allow npm registry",
+      "url_pattern": "^https://registry\\.npmjs\\.org/.*$",
+      "methods": ["GET"], "action": "allow", "priority": 90,
+      "log_request_body": "none", "log_response_body": "none"
+    },
+    {
+      "name": "Block everything else",
+      "url_pattern": ".*", "methods": [],
+      "action": "deny", "priority": 0,
+      "log_request_body": "full", "log_response_body": "none"
+    }
+  ]
+}
