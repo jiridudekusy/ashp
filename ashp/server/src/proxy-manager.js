@@ -17,7 +17,7 @@ export class ProxyManager {
   }
 
   #spawn() {
-    this.#proc = spawn(this.#binPath, this.#args, { stdio: 'ignore' });
+    this.#proc = spawn(this.#binPath, this.#args, { stdio: 'inherit' });
     this.#startedAt = Date.now();
     this.#proc.on('exit', (code) => {
       this.#proc = null;

@@ -35,8 +35,7 @@ export default function logsRoutes({ requestLogDAO, crypto, config }) {
       const offset = parseInt(offsetStr);
       const length = parseInt(lengthStr);
       const dataDir = config.database.path.replace(/\/[^/]+$/, '');
-      const logDir = `${dataDir}/logs`;
-      const fullPath = `${logDir}/${filePath}`;
+      const fullPath = filePath.startsWith('logs/') ? `${dataDir}/${filePath}` : `${dataDir}/logs/${filePath}`;
 
       const fh = await open(fullPath, 'r');
       const buf = Buffer.alloc(length);

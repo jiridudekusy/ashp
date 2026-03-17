@@ -111,6 +111,19 @@ export async function startServer(flags = {}) {
   app.use('/api/logs', logsRoutes(deps));
   app.use('/api/approvals', approvalsRoutes(deps));
   app.use('/api/events', eventsRoute(events));
+
+  // Serve GUI static files if dist/ exists (production mode)
+  const guiDistPath = config.gui?.dist_path
+    ? resolve(config.gui.dist_path)
+    : resolve(dataDir, '..', 'gui', 'dist');
+  if (existsSync(guiDistPath)) {
+    app.use(express.static(guiDistPath));
+    app.use((req, res, next) => {
+      if (req.method !== 'GET' || req.path.startsWith('/api')) return next();
+      res.sendFile(resolve(guiDistPath, 'index.html'));
+    });
+  }
+
   app.use(errorHandler);
 
   const [host, port] = config.management.listen.split(':');
@@ -150,9 +163,11 @@ if (process.argv[1] === import.meta.filename) {
   for (let i = 2; i < process.argv.length; i += 2) {
     flags[process.argv[i].replace(/^--/, '')] = process.argv[i + 1];
   }
-  startServer(flags).then(({ server }) => {
+  startServer(flags).then(({ server, proxyManager }) => {
     const addr = server.address();
     if (addr) console.log(`ASHP management API listening on ${addr.address}:${addr.port}`);
+    proxyManager.start();
+    console.log('ASHP proxy started');
   }).catch(err => {
     console.error('Failed to start:', err.message);
     process.exit(1);

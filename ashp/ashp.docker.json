@@ -1,0 +1,19 @@
+{
+  "proxy": {
+    "listen": "0.0.0.0:8080",
+    "auth": { "agent1": "change-me-agent-token" },
+    "bin_path": "/app/proxy/ashp-proxy",
+    "hold_timeout": 60
+  },
+  "management": {
+    "listen": "0.0.0.0:3000",
+    "bearer_token": "change-me-mgmt-token"
+  },
+  "rules": { "source": "db" },
+  "default_behavior": "deny",
+  "logging": { "request_body": "full", "response_body": "truncate:65536", "retention_days": 30 },
+  "database": { "path": "/data/ashp.db", "encryption_key": "env:ASHP_DB_KEY" },
+  "encryption": { "log_key": "env:ASHP_LOG_KEY", "ca_key": "env:ASHP_CA_KEY" },
+  "gui": { "dist_path": "/app/gui/dist" },
+  "webhooks": []
+}
