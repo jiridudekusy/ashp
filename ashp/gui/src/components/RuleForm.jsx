@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Modal } from './Modal.jsx';
 import styles from './RuleForm.module.css';
 
@@ -8,6 +8,10 @@ const EMPTY = { name: '', url_pattern: '', methods: [], action: 'allow', priorit
 export default function RuleForm({ open, rule, onSave, onCancel }) {
   const [form, setForm] = useState(rule || EMPTY);
   const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
+
+  useEffect(() => {
+    if (open) setForm(rule || EMPTY);
+  }, [open, rule]);
 
   return (
     <Modal open={open} onClose={onCancel} title={rule ? 'Edit Rule' : 'Add Rule'}>
