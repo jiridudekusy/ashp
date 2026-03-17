@@ -1,0 +1,26 @@
+FROM docker:dind
+
+# Node.js
+RUN apk add --no-cache nodejs npm
+
+# Go
+ARG GO_VERSION=1.23.6
+RUN apk add --no-cache curl bash git && \
+    curl -fsSL "https://go.dev/dl/go${GO_VERSION}.linux-$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/').tar.gz" \
+    | tar -C /usr/local -xz
+ENV PATH="/usr/local/go/bin:/root/go/bin:${PATH}"
+
+# SQLCipher build deps (needed for @journeyapps/sqlcipher native module)
+RUN apk add --no-cache python3 make g++ sqlcipher-dev
+
+# Claude Code
+RUN npm install -g @anthropic-ai/claude-code
+
+# Non-root user (Claude Code refuses --dangerously-skip-permissions as root)
+RUN addgroup -S dev && adduser -S dev -G dev -G docker -h /home/dev -s /bin/bash \
+    && mkdir -p /home/dev/go /home/dev/.claude \
+    && chown -R dev:dev /home/dev
+ENV PATH="/usr/local/go/bin:/home/dev/go/bin:${PATH}"
+ENV GOPATH="/home/dev/go"
+
+WORKDIR /workspace
