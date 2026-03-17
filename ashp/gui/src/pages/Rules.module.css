@@ -1,0 +1,41 @@
+.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.headerLeft { display: flex; align-items: baseline; gap: 8px; }
+.title { font-size: 18px; font-weight: 600; color: var(--color-text); margin: 0; }
+.count { font-size: 12px; color: var(--color-text-muted); }
+.headerRight { display: flex; gap: 8px; align-items: center; }
+
+.testerGroup {
+  display: flex;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--color-bg-card);
+}
+.testerInput { border: none; padding: 6px 10px; font-size: 12px; width: 220px; outline: none; color: var(--color-text); background: transparent; }
+.testerMethod { background: var(--color-bg-page); border-left: 1px solid var(--color-border); padding: 6px 8px; font-size: 11px; color: var(--color-text-secondary); border: none; }
+.testerBtn { background: var(--color-bg-hover); border-left: 1px solid var(--color-border); padding: 6px 12px; font-size: 12px; color: var(--color-accent); font-weight: 500; cursor: pointer; border: none; }
+
+.addBtn { background: var(--color-accent); color: white; padding: 6px 14px; border-radius: var(--radius); font-size: 12px; font-weight: 500; cursor: pointer; border: none; }
+.addBtn:hover { background: var(--color-accent-hover); }
+
+.readOnlyBanner { background: var(--color-hold-bg); border: 1px solid var(--color-hold-border); border-radius: var(--radius); padding: 8px 14px; font-size: 12px; color: var(--color-hold); margin-bottom: 12px; }
+
+.table { background: var(--color-bg-card); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; }
+.tableHeader { display: grid; grid-template-columns: 1.5fr 2.5fr 80px 70px 60px 50px 90px; padding: 10px 14px; background: var(--color-bg-page); border-bottom: 1px solid var(--color-border); font-weight: 500; color: var(--color-text-secondary); font-size: 11px; }
+.tableRow { display: grid; grid-template-columns: 1.5fr 2.5fr 80px 70px 60px 50px 90px; padding: 10px 14px; border-bottom: 1px solid var(--color-border-light); align-items: center; font-size: 12px; color: var(--color-text); }
+.tableRowDisabled { composes: tableRow; opacity: 0.5; }
+.cellPattern { font-family: monospace; font-size: 12px; }
+.cellActions { display: flex; gap: 8px; }
+.actionLink { background: none; border: none; font-size: 12px; cursor: pointer; padding: 0; }
+.editLink { composes: actionLink; color: var(--color-accent); }
+.deleteLink { composes: actionLink; color: var(--color-deny); }
+.dot { width: 8px; height: 8px; border-radius: 50%; }
+.dotGreen { composes: dot; background: var(--color-success); }
+.dotGrey { composes: dot; background: var(--color-text-muted); }
+
+.testResult { border-radius: var(--radius); padding: 10px 14px; margin-top: 10px; display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.testResultAllow { composes: testResult; background: var(--color-allow-bg); border: 1px solid var(--color-allow-border); color: var(--color-allow); }
+.testResultDeny { composes: testResult; background: var(--color-deny-bg); border: 1px solid var(--color-deny-border); color: var(--color-deny); }
+.testResultHold { composes: testResult; background: var(--color-hold-bg); border: 1px solid var(--color-hold-border); color: var(--color-hold); }
+
+.empty { padding: 40px; text-align: center; color: var(--color-text-muted); font-size: 13px; }
