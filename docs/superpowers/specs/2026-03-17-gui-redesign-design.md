@@ -167,6 +167,6 @@ Complete visual and UX redesign of the ASHP admin GUI. The current GUI has no CS
 
 ## Technology
 - React 19 + React Router 7 (existing)
-- **CSS approach:** Single global stylesheet with CSS custom properties for theming. One file for variables (`variables.css`), one for component styles (`styles.css`).
+- **CSS approach:** CSS Modules (`.module.css` co-located with each component) + shared `theme/variables.css` for CSS custom properties (theming, colors, spacing). Vite supports CSS Modules natively — zero config.
 - No external UI library — hand-crafted components matching the design spec
 - Vite for bundling (existing)
