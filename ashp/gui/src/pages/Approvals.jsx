@@ -3,6 +3,7 @@ import { Badge } from '../components/Badge';
 import { DetailPanel } from '../components/DetailPanel';
 import { SmartRuleBuilder } from '../components/SmartRuleBuilder';
 import ApprovalCard from '../components/ApprovalCard';
+import { SplitPane } from '../components/SplitPane';
 import styles from './Approvals.module.css';
 
 const DEFAULT_TIMEOUT = 30;
@@ -103,87 +104,99 @@ export default function Approvals({ api, events }) {
     );
   })() : null;
 
-  return (
-    <div className={styles.page}>
-      <div className={styles.list}>
-        {/* Pending section */}
-        <div className={styles.sectionHeader}>
-          <span className={styles.sectionTitle}>Pending</span>
-          <span className={styles.sectionCount}>{approvals.length}</span>
-        </div>
-
-        {approvals.length === 0 && (
-          <div className={styles.empty}>No pending approvals.</div>
-        )}
-
-        {approvals.map(a => (
-          <ApprovalCard
-            key={a.id}
-            approval={a}
-            selected={selected?.id === a.id}
-            onClick={() => setSelected(a)}
-            timeoutSeconds={timeoutSeconds}
-          />
-        ))}
-
-        {/* Recently Resolved section */}
-        {resolved.length > 0 && (
-          <>
-            <div className={styles.resolvedHeader}>
-              <span className={styles.resolvedTitle}>Recently Resolved</span>
-            </div>
-            {resolved.map((r, i) => (
-              <div key={r.id || i} className={styles.resolvedRow}>
-                <div className={styles.resolvedTop}>
-                  <span className={styles.approvalUrl}>
-                    {r.method || 'POST'} {r.suggested_pattern || r.url || 'Unknown'}
-                  </span>
-                  <Badge variant={r.action === 'approve' ? 'allowed' : 'denied'}>
-                    {r.action === 'approve' ? 'approved' : 'rejected'}
-                  </Badge>
-                </div>
-                <div className={styles.resolvedMeta}>
-                  {formatRelativeTime(r.resolved_at)}
-                </div>
-              </div>
-            ))}
-          </>
-        )}
+  const listPane = (
+    <>
+      {/* Pending section */}
+      <div className={styles.sectionHeader}>
+        <span className={styles.sectionTitle}>Pending</span>
+        <span className={styles.sectionCount}>{approvals.length}</span>
       </div>
 
-      <div className={styles.detailSide}>
-        <div className={styles.detailContent}>
-          <DetailPanel entry={entry} api={api}>
-            {countdownNode}
-          </DetailPanel>
-        </div>
+      {approvals.length === 0 && (
+        <div className={styles.empty}>No pending approvals.</div>
+      )}
 
-        {selected && (
-          <div className={styles.actionButtons}>
-            <div className={styles.actionRow}>
-              <button
-                className={styles.approveBtn}
-                onClick={() => handleApprove(selected.id)}
-              >
-                Approve
-              </button>
-              <button
-                className={styles.rejectBtn}
-                onClick={() => handleReject(selected.id)}
-              >
-                Reject
-              </button>
+      {approvals.map(a => (
+        <ApprovalCard
+          key={a.id}
+          approval={a}
+          selected={selected?.id === a.id}
+          onClick={() => setSelected(a)}
+          timeoutSeconds={timeoutSeconds}
+        />
+      ))}
+
+      {/* Recently Resolved section */}
+      {resolved.length > 0 && (
+        <>
+          <div className={styles.resolvedHeader}>
+            <span className={styles.resolvedTitle}>Recently Resolved</span>
+          </div>
+          {resolved.map((r, i) => (
+            <div key={r.id || i} className={styles.resolvedRow}>
+              <div className={styles.resolvedTop}>
+                <span className={styles.approvalUrl}>
+                  {r.method || 'POST'} {r.suggested_pattern || r.url || 'Unknown'}
+                </span>
+                <Badge variant={r.action === 'approve' ? 'allowed' : 'denied'}>
+                  {r.action === 'approve' ? 'approved' : 'rejected'}
+                </Badge>
+              </div>
+              <div className={styles.resolvedMeta}>
+                {formatRelativeTime(r.resolved_at)}
+              </div>
             </div>
+          ))}
+        </>
+      )}
+    </>
+  );
+
+  const detailPane = (
+    <div className={styles.detailWrapper}>
+      <div className={styles.detailContent}>
+        <DetailPanel entry={entry} api={api}>
+          {countdownNode}
+        </DetailPanel>
+      </div>
+
+      {selected && (
+        <div className={styles.actionButtons}>
+          <div className={styles.actionRow}>
             <button
-              className={styles.approveRuleBtn}
-              onClick={() => handleApproveAndRule(selected)}
+              className={styles.approveBtn}
+              onClick={() => handleApprove(selected.id)}
             >
-              Approve + Create Rule
+              Approve
+            </button>
+            <button
+              className={styles.rejectBtn}
+              onClick={() => handleReject(selected.id)}
+            >
+              Reject
             </button>
           </div>
-        )}
-      </div>
+          <button
+            className={styles.approveRuleBtn}
+            onClick={() => handleApproveAndRule(selected)}
+          >
+            Approve + Create Rule
+          </button>
+        </div>
+      )}
+    </div>
+  );
 
+  return (
+    <div className={styles.page}>
+      <SplitPane
+        left={listPane}
+        right={detailPane}
+        storageId="approvals"
+        defaultWidth={380}
+        minWidth={250}
+        maxWidth={700}
+      />
       <SmartRuleBuilder
         open={!!ruleEntry}
         onClose={() => setRuleEntry(null)}

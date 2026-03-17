@@ -5,13 +5,6 @@
   margin: -20px;
 }
 
-.list {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  border-right: 1px solid var(--color-border);
-  overflow-y: auto;
-}
 
 .sectionHeader {
   padding: 10px 14px;
@@ -118,11 +111,10 @@
   color: var(--color-text-muted);
 }
 
-.detailSide {
-  width: 380px;
+.detailWrapper {
   display: flex;
   flex-direction: column;
-  flex-shrink: 0;
+  height: 100%;
 }
 
 .detailContent {

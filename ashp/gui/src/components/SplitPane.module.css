@@ -1,0 +1,49 @@
+.container {
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+}
+
+.left {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.divider {
+  width: 5px;
+  background: var(--color-border);
+  cursor: col-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+.divider:hover,
+.divider:active {
+  background: var(--color-accent);
+}
+
+.handle {
+  width: 3px;
+  height: 32px;
+  border-radius: 2px;
+  background: var(--color-text-muted);
+  opacity: 0.4;
+}
+
+.divider:hover .handle {
+  opacity: 0.8;
+  background: white;
+}
+
+.right {
+  flex-shrink: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}

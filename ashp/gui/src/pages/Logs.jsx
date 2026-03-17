@@ -4,6 +4,7 @@ import { Badge } from '../components/Badge';
 import { SegmentedControl } from '../components/SegmentedControl';
 import { DetailPanel } from '../components/DetailPanel';
 import { SmartRuleBuilder } from '../components/SmartRuleBuilder';
+import { SplitPane } from '../components/SplitPane';
 import styles from './Logs.module.css';
 
 const DECISION_OPTIONS = [
@@ -87,84 +88,94 @@ export default function Logs({ api, events }) {
   const start = filters.offset + 1;
   const end = filters.offset + logs.length;
 
-  return (
-    <div className={styles.page}>
-      <div className={styles.list}>
-        <div className={styles.filters}>
-          <SegmentedControl
-            options={DECISION_OPTIONS}
-            value={filters.decision || ''}
-            onChange={v => updateFilter('decision', v)}
-          />
-          <SegmentedControl
-            options={METHOD_OPTIONS}
-            value={filters.method || ''}
-            onChange={v => updateFilter('method', v)}
-          />
-          <input
-            className={styles.urlFilter}
-            type="text"
-            placeholder="Filter by URL..."
-            onChange={e => updateFilter('url', e.target.value)}
-          />
-        </div>
-
-        {hasNewEntries && (
-          <div className={styles.newBanner} onClick={handleRefreshBanner}>
-            New entries available — click to refresh
-          </div>
-        )}
-
-        <div className={styles.rows}>
-          {logs.length === 0 ? (
-            <div className={styles.empty}>No log entries yet</div>
-          ) : (
-            logs.map(log => (
-              <div
-                key={log.id}
-                className={selected?.id === log.id ? styles.logRowSelected : styles.logRow}
-                onClick={() => handleSelect(log)}
-              >
-                <Badge variant={log.decision} />
-                <span className={styles.logMethod}>{log.method}</span>
-                <span className={styles.logUrl} title={log.url}>{log.url}</span>
-                <span className={styles.logTime}>{formatTime(log.timestamp)}</span>
-              </div>
-            ))
-          )}
-        </div>
-
-        <div className={styles.pagination}>
-          <span className={styles.paginationInfo}>
-            {logs.length > 0 ? `${start}-${end}` : '0'} entries
-          </span>
-          <div className={styles.paginationBtns}>
-            <button
-              className={styles.paginationBtn}
-              disabled={filters.offset === 0}
-              onClick={() => setFilters(f => ({ ...f, offset: f.offset - f.limit }))}
-            >
-              Prev
-            </button>
-            <button
-              className={styles.paginationBtn}
-              disabled={logs.length < filters.limit}
-              onClick={() => setFilters(f => ({ ...f, offset: f.offset + f.limit }))}
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className={styles.detailSide}>
-        <DetailPanel
-          entry={selected}
-          api={api}
-          onCreateRule={entry => setRuleEntry(entry)}
+  const listPane = (
+    <>
+      <div className={styles.filters}>
+        <SegmentedControl
+          options={DECISION_OPTIONS}
+          value={filters.decision || ''}
+          onChange={v => updateFilter('decision', v)}
+        />
+        <SegmentedControl
+          options={METHOD_OPTIONS}
+          value={filters.method || ''}
+          onChange={v => updateFilter('method', v)}
+        />
+        <input
+          className={styles.urlFilter}
+          type="text"
+          placeholder="Filter by URL..."
+          onChange={e => updateFilter('url', e.target.value)}
         />
       </div>
 
+      {hasNewEntries && (
+        <div className={styles.newBanner} onClick={handleRefreshBanner}>
+          New entries available — click to refresh
+        </div>
+      )}
+
+      <div className={styles.rows}>
+        {logs.length === 0 ? (
+          <div className={styles.empty}>No log entries yet</div>
+        ) : (
+          logs.map(log => (
+            <div
+              key={log.id}
+              className={selected?.id === log.id ? styles.logRowSelected : styles.logRow}
+              onClick={() => handleSelect(log)}
+            >
+              <Badge variant={log.decision} />
+              <span className={styles.logMethod}>{log.method}</span>
+              <span className={styles.logUrl} title={log.url}>{log.url}</span>
+              <span className={styles.logTime}>{formatTime(log.timestamp)}</span>
+            </div>
+          ))
+        )}
+      </div>
+
+      <div className={styles.pagination}>
+        <span className={styles.paginationInfo}>
+          {logs.length > 0 ? `${start}-${end}` : '0'} entries
+        </span>
+        <div className={styles.paginationBtns}>
+          <button
+            className={styles.paginationBtn}
+            disabled={filters.offset === 0}
+            onClick={() => setFilters(f => ({ ...f, offset: f.offset - f.limit }))}
+          >
+            Prev
+          </button>
+          <button
+            className={styles.paginationBtn}
+            disabled={logs.length < filters.limit}
+            onClick={() => setFilters(f => ({ ...f, offset: f.offset + f.limit }))}
+          >
+            Next
+          </button>
+        </div>
+      </div>
+    </>
+  );
+
+  const detailPane = (
+    <DetailPanel
+      entry={selected}
+      api={api}
+      onCreateRule={entry => setRuleEntry(entry)}
+    />
+  );
+
+  return (
+    <div className={styles.page}>
+      <SplitPane
+        left={listPane}
+        right={detailPane}
+        storageId="logs"
+        defaultWidth={380}
+        minWidth={250}
+        maxWidth={700}
+      />
       <SmartRuleBuilder
         open={!!ruleEntry}
         onClose={() => setRuleEntry(null)}

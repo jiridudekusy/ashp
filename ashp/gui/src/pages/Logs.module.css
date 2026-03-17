@@ -5,13 +5,6 @@
   margin: -20px;
 }
 
-.list {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  border-right: 1px solid var(--color-border);
-  min-width: 0;
-}
 
 .filters {
   padding: 10px 14px;
@@ -119,11 +112,6 @@
   gap: 4px;
 }
 
-.detailSide {
-  width: 380px;
-  overflow-y: auto;
-  flex-shrink: 0;
-}
 
 .newBanner {
   padding: 8px 14px;
