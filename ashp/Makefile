@@ -1,4 +1,4 @@
-.PHONY: build build-proxy build-gui dev dev-stop dev-restart dev-status dev-logs test test-server test-proxy test-gui test-e2e clean
+.PHONY: build build-proxy build-gui dev dev-stop dev-restart dev-status dev-logs test test-server test-proxy test-gui test-e2e bench clean
 
 build: build-proxy build-gui
 
@@ -36,6 +36,9 @@ test-gui:
 
 test-e2e: build-proxy
 	cd server && node --test '../test/e2e/*.test.js'
+
+bench: build-proxy
+	node test/bench/proxy-bench.js
 
 clean:
 	rm -f proxy/ashp-proxy
