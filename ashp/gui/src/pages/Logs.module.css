@@ -1,0 +1,147 @@
+.page {
+  display: flex;
+  gap: 0;
+  height: calc(100vh - 88px);
+  margin: -20px;
+}
+
+.list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--color-border);
+  min-width: 0;
+}
+
+.filters {
+  padding: 10px 14px;
+  background: var(--color-bg-card);
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.urlFilter {
+  flex: 1;
+  min-width: 120px;
+  padding: 4px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  font-size: 11px;
+  color: var(--color-text);
+  background: var(--color-bg-card);
+  outline: none;
+}
+
+.urlFilter:focus {
+  border-color: var(--color-accent);
+}
+
+.rows {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.logRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--color-border-light);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.logRow:hover {
+  background: var(--color-bg-hover);
+}
+
+.logRowSelected {
+  composes: logRow;
+  background: var(--color-accent-light);
+  border-left: 3px solid var(--color-accent);
+}
+
+.logMethod {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  min-width: 32px;
+}
+
+.logUrl {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--color-text);
+}
+
+.logTime {
+  font-size: 10px;
+  color: var(--color-text-muted);
+  min-width: 40px;
+  text-align: right;
+}
+
+.pagination {
+  padding: 8px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-bg-card);
+}
+
+.paginationInfo {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.paginationBtn {
+  padding: 4px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  font-size: 11px;
+  background: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.paginationBtn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.paginationBtns {
+  display: flex;
+  gap: 4px;
+}
+
+.detailSide {
+  width: 380px;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.newBanner {
+  padding: 8px 14px;
+  background: var(--color-accent-light);
+  color: var(--color-accent);
+  font-size: 12px;
+  text-align: center;
+  cursor: pointer;
+  border-bottom: 1px solid var(--color-accent-border);
+}
+
+.empty {
+  padding: 40px;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
