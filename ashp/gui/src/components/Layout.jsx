@@ -1,16 +1,14 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { Outlet } from 'react-router-dom';
+import { TopNav } from './TopNav.jsx';
+import styles from './Layout.module.css';
 
-export default function Layout({ onLogout }) {
+export default function Layout({ pendingCount, proxyConnected, onLogout }) {
   return (
-    <div className="layout">
-      <nav>
-        <NavLink to="/">Dashboard</NavLink>
-        <NavLink to="/rules">Rules</NavLink>
-        <NavLink to="/logs">Logs</NavLink>
-        <NavLink to="/approvals">Approvals</NavLink>
-        <button onClick={onLogout}>Logout</button>
-      </nav>
-      <main><Outlet /></main>
+    <div className={styles.layout}>
+      <TopNav pendingCount={pendingCount} proxyConnected={proxyConnected} onLogout={onLogout} />
+      <main className={styles.main}>
+        <Outlet />
+      </main>
     </div>
   );
 }

@@ -1,0 +1,10 @@
+.layout {
+  min-height: 100vh;
+  background: var(--color-bg-page);
+  color: var(--color-text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.main {
+  padding: 20px;
+}
