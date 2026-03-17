@@ -52,13 +52,26 @@ func New(cfg Config) *Proxy {
 		holdRequest:     cfg.HoldRequest,
 	}
 
+	// 407 response for unauthenticated CONNECT requests
+	connectReject407 := &goproxy.ConnectAction{
+		Action: goproxy.ConnectHijack,
+		Hijack: func(req *http.Request, client net.Conn, ctx *goproxy.ProxyCtx) {
+			resp := "HTTP/1.1 407 Proxy Authentication Required\r\n" +
+				"Proxy-Authenticate: Basic realm=\"ASHP Proxy\"\r\n" +
+				"Content-Length: 0\r\n" +
+				"Connection: close\r\n\r\n"
+			client.Write([]byte(resp))
+			client.Close()
+		},
+	}
+
 	// Set up MITM for CONNECT — authenticate at CONNECT time and store agentID
 	gp.OnRequest().HandleConnect(goproxy.FuncHttpsHandler(
 		func(host string, ctx *goproxy.ProxyCtx) (*goproxy.ConnectAction, string) {
 			// Authenticate on CONNECT request (has Proxy-Authorization)
 			agentID, ok := p.auth.Authenticate(ctx.Req)
 			if !ok {
-				return goproxy.RejectConnect, host
+				return connectReject407, host
 			}
 			ctx.UserData = agentID // carry agentID through to MITM'd requests
 			return &goproxy.ConnectAction{
