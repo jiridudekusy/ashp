@@ -1,0 +1,26 @@
+.code {
+  margin: 0;
+  padding: 12px;
+  background: var(--color-code-bg);
+  border: 1px solid var(--color-code-border);
+  border-radius: var(--radius);
+  color: var(--color-code-text);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.key { color: var(--color-code-key); }
+.string { color: var(--color-code-string); }
+.number { color: var(--color-code-number); }
+.bool { color: var(--color-code-number); }
+
+.placeholder {
+  padding: 24px;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
