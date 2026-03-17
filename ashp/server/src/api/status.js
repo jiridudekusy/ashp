@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { readFileSync, existsSync } from 'node:fs';
 
-export default function statusRoutes({ proxyManager, rulesDAO, config }) {
+export default function statusRoutes({ proxyManager, rulesDAO, config, ipc }) {
   const r = Router();
   const startedAt = Date.now();
 
@@ -9,7 +9,7 @@ export default function statusRoutes({ proxyManager, rulesDAO, config }) {
     try {
       const rules = await rulesDAO.list();
       res.json({
-        proxy: proxyManager.getStatus(),
+        proxy: { ...proxyManager.getStatus(), connected: ipc?.connected ?? false },
         management: { uptime_ms: Date.now() - startedAt },
         rules_count: rules.length,
         rules_source: config.rules.source,

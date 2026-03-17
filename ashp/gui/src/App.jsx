@@ -35,7 +35,7 @@ export default function App() {
   useEffect(() => {
     if (!api) return;
     api.getStatus().then(s => {
-      setProxyConnected(!!s.proxy?.connected);
+      setProxyConnected(!!s.proxy?.connected || !!s.proxy?.running);
     }).catch(() => {});
     api.getApprovals().then(a => {
       setPendingCount(a.length);
@@ -64,7 +64,7 @@ export default function App() {
           <BrowserRouter>
             <ApprovalTracker events={events} setPendingCount={setPendingCount} />
             <Routes>
-              <Route element={<Layout pendingCount={pendingCount} proxyConnected={proxyConnected && sseConnected} onLogout={handleLogout} />}>
+              <Route element={<Layout pendingCount={pendingCount} proxyConnected={proxyConnected} onLogout={handleLogout} />}>
                 <Route index element={<Dashboard api={api} events={events} />} />
                 <Route path="rules" element={<Rules api={api} events={events} />} />
                 <Route path="logs" element={<Logs api={api} events={events} />} />
