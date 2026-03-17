@@ -1,17 +1,36 @@
-export default function ApprovalCard({ approval, onResolve }) {
+import styles from './ApprovalCard.module.css';
+
+function formatRelativeTime(timestamp) {
+  if (!timestamp) return '';
+  const seconds = Math.floor((Date.now() - new Date(timestamp).getTime()) / 1000);
+  if (seconds < 5) return 'just now';
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  return `${Math.floor(minutes / 60)}h ago`;
+}
+
+export default function ApprovalCard({ approval, selected, onClick, timeoutSeconds }) {
+  const method = approval.method || 'POST';
+  const url = approval.suggested_pattern || approval.url || 'Unknown';
+  const elapsed = (Date.now() - new Date(approval.created_at).getTime()) / 1000;
+  const timeout = timeoutSeconds || 30;
+  const progress = Math.min(elapsed / timeout, 1);
+
   return (
-    <div className="approval-card">
-      <div><strong>#{approval.id}</strong> — Request #{approval.request_log_id}</div>
-      <div>Pattern: <code>{approval.suggested_pattern || 'N/A'}</code></div>
-      <div>Methods: {approval.suggested_methods || 'N/A'}</div>
-      <div>Status: {approval.status}</div>
-      {approval.status === 'pending' && (
-        <div className="actions">
-          <button onClick={() => onResolve(approval.id, 'approve', false)}>Approve</button>
-          <button onClick={() => onResolve(approval.id, 'approve', true)}>Approve + Create Rule</button>
-          <button onClick={() => onResolve(approval.id, 'reject', false)}>Reject</button>
-        </div>
-      )}
+    <div
+      className={selected ? styles.rowSelected : styles.row}
+      onClick={onClick}
+      data-testid="approval-row"
+    >
+      <div className={styles.top}>
+        <span className={styles.method}>{method}</span>
+        <span className={styles.url} title={url}>{url}</span>
+        <span className={styles.time}>{formatRelativeTime(approval.created_at)}</span>
+      </div>
+      <div className={styles.progressBar}>
+        <div className={styles.progressFill} style={{ width: `${progress * 100}%` }} />
+      </div>
     </div>
   );
 }

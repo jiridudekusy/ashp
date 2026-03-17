@@ -1,0 +1,201 @@
+.page {
+  display: flex;
+  gap: 0;
+  height: calc(100vh - 88px);
+  margin: -20px;
+}
+
+.list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--color-border);
+  overflow-y: auto;
+}
+
+.sectionHeader {
+  padding: 10px 14px;
+  background: var(--color-bg-card);
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sectionTitle {
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--color-text);
+}
+
+.sectionCount {
+  background: var(--color-hold-bg);
+  color: var(--color-hold);
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.approvalRow {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--color-border-light);
+  cursor: pointer;
+}
+
+.approvalRow:hover {
+  background: var(--color-bg-hover);
+}
+
+.approvalRowSelected {
+  composes: approvalRow;
+  background: var(--color-accent-light);
+  border-left: 3px solid var(--color-accent);
+}
+
+.approvalTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.approvalUrl {
+  font-size: 11px;
+  color: var(--color-text);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.approvalTime {
+  font-size: 10px;
+  color: var(--color-hold);
+  font-weight: 500;
+  margin-left: 8px;
+}
+
+.progressBar {
+  height: 3px;
+  background: var(--color-border);
+  border-radius: 2px;
+}
+
+.progressFill {
+  height: 100%;
+  background: var(--color-hold);
+  border-radius: 2px;
+  transition: width 1s linear;
+}
+
+.resolvedHeader {
+  composes: sectionHeader;
+  margin-top: 4px;
+  border-top: 1px solid var(--color-border);
+}
+
+.resolvedTitle {
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.resolvedRow {
+  composes: approvalRow;
+  opacity: 0.5;
+}
+
+.resolvedTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.resolvedMeta {
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+
+.detailSide {
+  width: 380px;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.detailContent {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.actionButtons {
+  padding: 12px 16px;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--color-bg-card);
+}
+
+.actionRow {
+  display: flex;
+  gap: 8px;
+}
+
+.approveBtn {
+  flex: 1;
+  padding: 8px;
+  background: var(--color-allow);
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.rejectBtn {
+  flex: 1;
+  padding: 8px;
+  background: var(--color-deny);
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.approveRuleBtn {
+  padding: 8px;
+  background: var(--color-accent);
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  width: 100%;
+}
+
+.timeout {
+  padding: 8px 16px;
+  font-size: 11px;
+  color: var(--color-hold);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.empty {
+  padding: 40px;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

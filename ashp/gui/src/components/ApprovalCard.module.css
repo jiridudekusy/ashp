@@ -1,0 +1,60 @@
+.row {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--color-border-light);
+  cursor: pointer;
+}
+
+.row:hover {
+  background: var(--color-bg-hover);
+}
+
+.rowSelected {
+  composes: row;
+  background: var(--color-accent-light);
+  border-left: 3px solid var(--color-accent);
+}
+
+.top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.method {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  margin-right: 6px;
+  font-weight: 600;
+}
+
+.url {
+  font-size: 11px;
+  color: var(--color-text);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.time {
+  font-size: 10px;
+  color: var(--color-hold);
+  font-weight: 500;
+  margin-left: 8px;
+  white-space: nowrap;
+}
+
+.progressBar {
+  height: 3px;
+  background: var(--color-border);
+  border-radius: 2px;
+}
+
+.progressFill {
+  height: 100%;
+  background: var(--color-hold);
+  border-radius: 2px;
+  transition: width 1s linear;
+}
