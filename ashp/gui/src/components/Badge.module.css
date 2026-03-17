@@ -1,0 +1,25 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 500;
+  min-width: 44px;
+  justify-content: center;
+}
+
+.allow {
+  background: var(--color-allow-bg);
+  color: var(--color-allow);
+}
+
+.deny {
+  background: var(--color-deny-bg);
+  color: var(--color-deny);
+}
+
+.hold {
+  background: var(--color-hold-bg);
+  color: var(--color-hold);
+}

@@ -1,0 +1,26 @@
+.group {
+  display: inline-flex;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--color-bg-card);
+}
+
+.option {
+  padding: 4px 10px;
+  font-size: 11px;
+  border: none;
+  background: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  border-left: 1px solid var(--color-border);
+}
+
+.option:first-child {
+  border-left: none;
+}
+
+.active {
+  background: var(--color-accent);
+  color: white;
+}
