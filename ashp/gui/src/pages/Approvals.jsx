@@ -195,7 +195,7 @@ export default function Approvals({ api, events }) {
         storageId="approvals"
         defaultWidth={380}
         minWidth={250}
-        maxWidth={700}
+        maxWidth={1200}
       />
       <SmartRuleBuilder
         open={!!ruleEntry}

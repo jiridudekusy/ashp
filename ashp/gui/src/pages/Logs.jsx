@@ -174,7 +174,7 @@ export default function Logs({ api, events }) {
         storageId="logs"
         defaultWidth={380}
         minWidth={250}
-        maxWidth={700}
+        maxWidth={1200}
       />
       <SmartRuleBuilder
         open={!!ruleEntry}
