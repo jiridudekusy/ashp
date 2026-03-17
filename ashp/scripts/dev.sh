@@ -68,7 +68,7 @@ stop_all() {
 start_server() {
   echo "Starting management server..."
   cd "$ASHP_DIR"
-  node --watch server/src/index.js --config ashp.json \
+  node --watch server/src/index.js --config ashp.json --start-proxy false \
     > "$LOG_DIR/server.log" 2>&1 &
   echo $! > "$PID_DIR/server.pid"
   # Wait for server to be ready

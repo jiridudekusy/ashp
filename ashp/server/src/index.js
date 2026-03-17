@@ -166,8 +166,10 @@ if (process.argv[1] === import.meta.filename) {
   startServer(flags).then(({ server, proxyManager }) => {
     const addr = server.address();
     if (addr) console.log(`ASHP management API listening on ${addr.address}:${addr.port}`);
-    proxyManager.start();
-    console.log('ASHP proxy started');
+    if (flags['start-proxy'] !== 'false') {
+      proxyManager.start();
+      console.log('ASHP proxy started');
+    }
   }).catch(err => {
     console.error('Failed to start:', err.message);
     process.exit(1);
