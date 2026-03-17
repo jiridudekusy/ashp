@@ -1,11 +1,14 @@
 package mitm
 
 import (
+	"bytes"
 	"crypto/tls"
 	"encoding/json"
+	"io"
 	"net"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/elazarl/goproxy"
@@ -113,15 +116,40 @@ func New(cfg Config) *Proxy {
 		rule := p.evaluator.Match(fullURL, req.Method)
 
 		if rule != nil && rule.Action == "deny" {
-			p.sendIPC("request.blocked", map[string]interface{}{
+			// Capture request body for denied requests if rule says to log it
+			var reqBodyRef string
+			if rule.LogRequestBody != "" && rule.LogRequestBody != "none" {
+				ref, _ := p.captureBody(req.Body, rule.LogRequestBody)
+				reqBodyRef = ref
+			}
+			ipcData := map[string]interface{}{
 				"agent_id": agentID, "url": fullURL, "method": req.Method, "decision": "denied", "reason": "rule_deny",
-			})
+			}
+			if reqBodyRef != "" {
+				ipcData["request_body_ref"] = reqBodyRef
+			}
+			p.sendIPC("request.blocked", ipcData)
 			return req, goproxy.NewResponse(req, goproxy.ContentTypeText, 403, "Forbidden by proxy rule")
 		}
 
 		behavior := p.defaultBehavior
 		if rule != nil && rule.Action == "allow" {
-			ctx.UserData = map[string]interface{}{"agent_id": agentID, "url": fullURL}
+			// Capture request body for allowed requests
+			var reqBodyRef string
+			if rule.LogRequestBody != "" && rule.LogRequestBody != "none" {
+				ref, origData := p.captureBody(req.Body, rule.LogRequestBody)
+				reqBodyRef = ref
+				// Restore body for forwarding
+				if origData != nil {
+					req.Body = io.NopCloser(bytes.NewReader(origData))
+					req.ContentLength = int64(len(origData))
+				}
+			}
+			ctx.UserData = map[string]interface{}{
+				"agent_id": agentID, "url": fullURL,
+				"request_body_ref": reqBodyRef,
+				"log_response_body": rule.LogResponseBody,
+			}
 			return req, nil
 		}
 		if rule != nil && rule.DefaultBehavior != "" {
@@ -183,14 +211,35 @@ func New(cfg Config) *Proxy {
 		agentID, _ := ud["agent_id"].(string)
 		reqURL, _ := ud["url"].(string)
 		if agentID != "" && reqURL != "" {
-			p.sendIPC("request.logged", map[string]interface{}{
+			reqBodyRef, _ := ud["request_body_ref"].(string)
+			logRespBody, _ := ud["log_response_body"].(string)
+
+			// Capture response body
+			var respBodyRef string
+			if logRespBody != "" && logRespBody != "none" && resp.Body != nil {
+				ref, origData := p.captureBody(resp.Body, logRespBody)
+				respBodyRef = ref
+				if origData != nil {
+					resp.Body = io.NopCloser(bytes.NewReader(origData))
+					resp.ContentLength = int64(len(origData))
+				}
+			}
+
+			ipcData := map[string]interface{}{
 				"agent_id":        agentID,
 				"url":             reqURL,
 				"method":          ctx.Req.Method,
 				"decision":        "allowed",
 				"response_status": resp.StatusCode,
 				"status_code":     resp.StatusCode,
-			})
+			}
+			if reqBodyRef != "" {
+				ipcData["request_body_ref"] = reqBodyRef
+			}
+			if respBodyRef != "" {
+				ipcData["response_body_ref"] = respBodyRef
+			}
+			p.sendIPC("request.logged", ipcData)
 		}
 		return resp
 	})
@@ -226,6 +275,31 @@ func suggestPattern(fullURL string) string {
 	}
 	host := regexp.QuoteMeta(m[1])
 	return "^" + host + "/.*$"
+}
+
+// captureBody reads a body according to the logging policy and writes it to the encrypted log.
+// Returns the ref string or empty string if not logged.
+func (p *Proxy) captureBody(body io.ReadCloser, policy string) (string, []byte) {
+	if body == nil || p.logWriter == nil || policy == "" || policy == "none" {
+		return "", nil
+	}
+	data, err := io.ReadAll(body)
+	if err != nil || len(data) == 0 {
+		return "", data
+	}
+	toLog := data
+	if strings.HasPrefix(policy, "truncate:") {
+		if maxStr := strings.TrimPrefix(policy, "truncate:"); maxStr != "" {
+			if max, err := strconv.Atoi(maxStr); err == nil && len(toLog) > max {
+				toLog = toLog[:max]
+			}
+		}
+	}
+	ref, err := p.logWriter.Write(toLog)
+	if err != nil {
+		return "", data
+	}
+	return ref, data
 }
 
 func (p *Proxy) Stop() {

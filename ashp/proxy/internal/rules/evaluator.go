@@ -14,6 +14,8 @@ type Rule struct {
 	Priority        int      `json:"priority"`
 	Enabled         bool     `json:"enabled"`
 	DefaultBehavior string   `json:"default_behavior,omitempty"`
+	LogRequestBody  string   `json:"log_request_body,omitempty"`
+	LogResponseBody string   `json:"log_response_body,omitempty"`
 }
 
 type compiledRule struct {

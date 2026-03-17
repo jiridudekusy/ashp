@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/tls"
+	"encoding/hex"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -138,7 +139,7 @@ func main() {
 
 	p := mitm.New(mitm.Config{
 		CA: ca, Evaluator: eval, Auth: auth.NewHandler(tokens),
-		LogDir: *logDir, LogKey: []byte(logKeyVal),
+		LogDir: *logDir, LogKey: decodeLogKey(logKeyVal),
 		IPC: ipcClient, DefaultBehavior: *defaultBehavior,
 		HoldRequest: holdRequestFn,
 	})
@@ -162,4 +163,16 @@ func resolveEnv(val string) string {
 		return os.Getenv(val[4:])
 	}
 	return val
+}
+
+func decodeLogKey(val string) []byte {
+	if val == "" {
+		return nil
+	}
+	decoded, err := hex.DecodeString(val)
+	if err != nil {
+		// Not hex — use raw bytes as fallback
+		return []byte(val)
+	}
+	return decoded
 }
