@@ -5,9 +5,9 @@ services:
       - "8080:8080"
       - "3000:3000"
     volumes:
-      - ./data:/app/data
-      - ./ashp.json:/app/ashp.json:ro
-      - ./rules.json:/app/rules.json:ro
+      - ./data:/data
+      - ./ashp.docker.json:/etc/ashp/ashp.json:ro
+      - ./rules.json:/etc/ashp/rules.json:ro
     environment:
       - ASHP_DB_KEY=dev-db-key-change-in-production
       - ASHP_LOG_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
@@ -22,10 +22,10 @@ services:
       - "5173:5173"
     volumes:
       - ./server/src:/app/server/src
-      - ./data:/app/data
-      - ./ashp.json:/app/ashp.json:ro
+      - ./data:/data
+      - ./ashp.docker.json:/etc/ashp/ashp.json:ro
     environment:
       - ASHP_DB_KEY=dev-db-key
       - ASHP_LOG_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
       - ASHP_CA_KEY=dev-ca-key
-    command: node --watch server/src/index.js --config /app/ashp.json
+    command: node --watch server/src/index.js --config /etc/ashp/ashp.json
