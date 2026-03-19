@@ -31,4 +31,5 @@ export class AgentsDAO {
   async rotateToken(id) { throw new Error('Not implemented'); }
   async authenticate(name, token) { throw new Error('Not implemented'); }
   async incrementRequestCount(name) { throw new Error('Not implemented'); }
+  listForProxy() { throw new Error('Not implemented'); }
 }

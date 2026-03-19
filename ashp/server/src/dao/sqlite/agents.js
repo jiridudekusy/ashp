@@ -20,10 +20,12 @@ function deserialize(row) {
 }
 
 export class SqliteAgentsDAO extends AgentsDAO {
+  #db;
   #stmts;
 
   constructor(db) {
     super();
+    this.#db = db;
     this.#stmts = {
       list: db.prepare('SELECT id, name, enabled, request_count, created_at FROM agents ORDER BY id'),
       get: db.prepare('SELECT id, name, enabled, request_count, created_at FROM agents WHERE id = ?'),
@@ -66,8 +68,10 @@ export class SqliteAgentsDAO extends AgentsDAO {
   }
 
   async delete(id) {
-    this.#stmts.deleteRequestLogs.run(id);
-    this.#stmts.delete.run(id);
+    this.#db.transaction(() => {
+      this.#stmts.deleteRequestLogs.run(id);
+      this.#stmts.delete.run(id);
+    })();
   }
 
   async rotateToken(id) {
