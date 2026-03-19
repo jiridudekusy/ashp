@@ -7,6 +7,7 @@ export class RulesDAO {
   update(id, rule)   { return notImpl('update'); }
   delete(id)         { return notImpl('delete'); }
   match(url, method) { return notImpl('match'); }
+  incrementHitCount(ruleId) { return notImpl('incrementHitCount'); }
 }
 
 export class RequestLogDAO {
