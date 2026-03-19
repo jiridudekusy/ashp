@@ -32,7 +32,6 @@ func main() {
 	caPass := flag.String("ca-pass", "", "CA key passphrase (or env:VAR)")
 	logDir := flag.String("log-dir", "data/logs", "encrypted log directory")
 	logKey := flag.String("log-key", "", "log encryption key hex (or env:VAR)")
-	authJSON := flag.String("auth", "{}", "JSON map of agent_id:token")
 	defaultBehavior := flag.String("default-behavior", "deny", "deny|hold|queue")
 	holdTimeoutSec := flag.Int("hold-timeout", 60, "hold timeout in seconds for Mode B")
 	flag.Parse()
@@ -42,8 +41,7 @@ func main() {
 	caPassVal := resolveEnv(*caPass)
 	logKeyVal := resolveEnv(*logKey)
 
-	tokens := map[string]string{}
-	json.Unmarshal([]byte(*authJSON), &tokens)
+	authHandler := auth.NewHandler()
 
 	certPath := *caDir + "/root.crt"
 	keyPath := *caDir + "/root.key"
@@ -72,6 +70,10 @@ func main() {
 				var ruleList []rules.Rule
 				json.Unmarshal(m.Data, &ruleList)
 				eval.Load(ruleList)
+			case "agents.reload":
+				var agents []auth.Agent
+				json.Unmarshal(m.Data, &agents)
+				authHandler.Reload(agents)
 			case "config.update":
 				var update struct {
 					DefaultBehavior string `json:"default_behavior"`
@@ -138,7 +140,7 @@ func main() {
 	}
 
 	p := mitm.New(mitm.Config{
-		CA: ca, Evaluator: eval, Auth: auth.NewHandler(tokens),
+		CA: ca, Evaluator: eval, Auth: authHandler,
 		LogDir: *logDir, LogKey: decodeLogKey(logKeyVal),
 		IPC: ipcClient, DefaultBehavior: *defaultBehavior,
 		HoldRequest: holdRequestFn,
