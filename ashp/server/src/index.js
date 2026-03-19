@@ -74,8 +74,8 @@ export async function startServer(flags = {}) {
         events.emit('approval.needed', { ...msg.data, log_id: logEntry.id });
         webhooks.dispatch('approval.needed', msg.data);
       }
-      if (msg.data.rule_id) await rulesDAO.incrementHitCount(msg.data.rule_id);
-      if (msg.data.agent_id) await agentsDAO.incrementRequestCount(msg.data.agent_id);
+      if (msg.data?.rule_id) await rulesDAO.incrementHitCount(msg.data.rule_id);
+      if (msg.data?.agent_id) await agentsDAO.incrementRequestCount(msg.data.agent_id);
       } catch (err) {
         console.error(`IPC onMessage error (${msg.type}):`, err.message);
       }
