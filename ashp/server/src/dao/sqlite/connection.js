@@ -48,5 +48,26 @@ export function createConnection(dbPath, encryptionKey) {
   db.pragma('foreign_keys = ON');
   db.exec(MIGRATIONS);
 
+  const { user_version } = db.prepare('PRAGMA user_version').get();
+
+  if (user_version < 1) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS agents (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE,
+        token_hash TEXT NOT NULL,
+        enabled INTEGER NOT NULL DEFAULT 1,
+        request_count INTEGER NOT NULL DEFAULT 0,
+        created_at DATETIME NOT NULL DEFAULT (datetime('now'))
+      );
+
+      ALTER TABLE rules ADD COLUMN hit_count INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE rules ADD COLUMN hit_count_today INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE rules ADD COLUMN hit_count_date TEXT;
+
+      PRAGMA user_version = 1;
+    `);
+  }
+
   return db;
 }

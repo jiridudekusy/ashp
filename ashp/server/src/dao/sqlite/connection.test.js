@@ -48,4 +48,38 @@ describe('SQLite connection factory', () => {
     assert.ok(tables.includes('approval_queue'), 'approval_queue table missing');
     db.close();
   });
+
+  describe('schema migrations', () => {
+    let db;
+
+    beforeEach(() => {
+      db = createConnection(join(dir, 'test.db'), 'test-key');
+    });
+
+    afterEach(() => {
+      db.close();
+    });
+
+    it('creates agents table with correct schema', () => {
+      const cols = db.prepare("PRAGMA table_info('agents')").all().map(c => c.name);
+      assert.ok(cols.includes('id'));
+      assert.ok(cols.includes('name'));
+      assert.ok(cols.includes('token_hash'));
+      assert.ok(cols.includes('enabled'));
+      assert.ok(cols.includes('request_count'));
+      assert.ok(cols.includes('created_at'));
+    });
+
+    it('rules table has hit_count columns', () => {
+      const cols = db.prepare("PRAGMA table_info('rules')").all().map(c => c.name);
+      assert.ok(cols.includes('hit_count'));
+      assert.ok(cols.includes('hit_count_today'));
+      assert.ok(cols.includes('hit_count_date'));
+    });
+
+    it('tracks schema version via user_version', () => {
+      const { user_version } = db.prepare('PRAGMA user_version').get();
+      assert.equal(user_version, 1);
+    });
+  });
 });
