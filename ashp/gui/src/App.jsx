@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard';
 import Rules from './pages/Rules';
 import Logs from './pages/Logs';
 import Approvals from './pages/Approvals';
+import Agents from './pages/Agents';
 
 function EventBridge({ credentials, onConnect, onDisconnect, children }) {
   const subscribers = useMemo(() => new Set(), []);
@@ -69,6 +70,7 @@ export default function App() {
                 <Route path="rules" element={<Rules api={api} events={events} />} />
                 <Route path="logs" element={<Logs api={api} events={events} />} />
                 <Route path="approvals" element={<Approvals api={api} events={events} />} />
+                <Route path="agents" element={<Agents api={api} events={events} />} />
               </Route>
             </Routes>
           </BrowserRouter>

@@ -91,7 +91,7 @@ export default function Rules({ api }) {
       ) : (
         <div className={styles.table}>
           <div className={styles.tableHeader}>
-            <span>Name</span><span>Pattern</span><span>Methods</span><span>Action</span><span>Priority</span><span>On</span><span></span>
+            <span>Name</span><span>Pattern</span><span>Methods</span><span>Action</span><span>Priority</span><span>On</span><span>Hits (Total)</span><span>Hits (Today)</span><span></span>
           </div>
           {sorted.map(r => (
             <div key={r.id} className={r.enabled ? styles.tableRow : styles.tableRowDisabled}>
@@ -101,6 +101,8 @@ export default function Rules({ api }) {
               <span><Badge variant={r.action}>{r.action}</Badge></span>
               <span>{r.priority}</span>
               <span><span className={r.enabled ? styles.dotGreen : styles.dotGrey} /></span>
+              <span>{r.hit_count}</span>
+              <span>{r.hit_count_today}{r.hit_count_date && r.hit_count_date !== new Date().toISOString().slice(0, 10) ? ` (${r.hit_count_date})` : ''}</span>
               <span className={styles.cellActions}>
                 {!readOnly && (
                   <>
