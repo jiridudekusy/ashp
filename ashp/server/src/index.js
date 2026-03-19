@@ -9,11 +9,13 @@ import { IPCServer } from './ipc/server.js';
 import eventsRoute, { EventBus } from './api/events.js';
 import { ProxyManager } from './proxy-manager.js';
 import { WebhookDispatcher } from './webhooks/dispatcher.js';
-import { bearerAuth, errorHandler } from './api/middleware.js';
+import { basicAuth, errorHandler } from './api/middleware.js';
 import rulesRoutes from './api/rules.js';
 import logsRoutes from './api/logs.js';
 import approvalsRoutes from './api/approvals.js';
+import agentsRoutes from './api/agents.js';
 import statusRoutes from './api/status.js';
+import { SqliteAgentsDAO } from './dao/sqlite/agents.js';
 import * as crypto from './crypto/index.js';
 import { mkdirSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
@@ -31,9 +33,10 @@ export async function startServer(flags = {}) {
     : new SqliteRulesDAO(db);
   const requestLogDAO = new SqliteRequestLogDAO(db);
   const approvalQueueDAO = new SqliteApprovalQueueDAO(db);
+  const agentsDAO = new SqliteAgentsDAO(db);
 
   // IPC
-  const socketPath = resolve(dataDir, 'ashp.sock');
+  const socketPath = config.ipc_socket || resolve(dataDir, 'ashp.sock');
   if (existsSync(socketPath)) unlinkSync(socketPath);
 
   const events = new EventBus();
@@ -46,6 +49,8 @@ export async function startServer(flags = {}) {
         const rules = await rulesDAO.list();
         // rules sent to proxy on connect
         ipc.send({ type: 'rules.reload', data: rules });
+        const agents = agentsDAO.listForProxy();
+        ipc.send({ type: 'agents.reload', data: agents });
       } catch (err) {
         console.error('[IPC] onConnect error:', err.message);
       }
@@ -69,6 +74,8 @@ export async function startServer(flags = {}) {
         events.emit('approval.needed', { ...msg.data, log_id: logEntry.id });
         webhooks.dispatch('approval.needed', msg.data);
       }
+      if (msg.data.rule_id) await rulesDAO.incrementHitCount(msg.data.rule_id);
+      if (msg.data.agent_id) await agentsDAO.incrementRequestCount(msg.data.agent_id);
       } catch (err) {
         console.error(`IPC onMessage error (${msg.type}):`, err.message);
       }
@@ -81,7 +88,6 @@ export async function startServer(flags = {}) {
   const proxyArgs = [
     '--socket', socketPath,
     '--listen', config.proxy.listen,
-    '--auth', JSON.stringify(config.proxy.auth || {}),
     '--default-behavior', config.default_behavior || 'deny',
   ];
   if (config.proxy.hold_timeout) proxyArgs.push('--hold-timeout', String(config.proxy.hold_timeout));
@@ -93,23 +99,26 @@ export async function startServer(flags = {}) {
   const proxyManager = new ProxyManager(proxyBinPath, proxyArgs, { onRestart: async () => {
     const rules = await rulesDAO.list();
     ipc.send({ type: 'rules.reload', data: rules });
+    const agents = agentsDAO.listForProxy();
+    ipc.send({ type: 'agents.reload', data: agents });
   }});
 
   // Express app
   const app = express();
   app.use(express.json());
 
-  const deps = { rulesDAO, requestLogDAO, approvalQueueDAO, config, ipc, events, proxyManager,
+  const deps = { rulesDAO, requestLogDAO, approvalQueueDAO, agentsDAO, config, ipc, events, proxyManager,
     crypto: { ...crypto, logKey } };
 
   // Public: CA cert and status
   app.use('/api', statusRoutes(deps));
 
   // Protected routes
-  app.use('/api', bearerAuth(config.management.bearer_token));
+  app.use('/api', basicAuth(config.management.auth));
   app.use('/api/rules', rulesRoutes(deps));
   app.use('/api/logs', logsRoutes(deps));
   app.use('/api/approvals', approvalsRoutes(deps));
+  app.use('/api/agents', agentsRoutes({ agentsDAO, ipc }));
   app.use('/api/events', eventsRoute(events));
 
   // Serve GUI static files if dist/ exists (production mode)
@@ -141,6 +150,8 @@ export async function startServer(flags = {}) {
       ipc.send({ type: 'config.update', data: { default_behavior: newConfig.default_behavior } });
       const currentRules = await rulesDAO.list();
       ipc.send({ type: 'rules.reload', data: currentRules });
+      const currentAgents = agentsDAO.listForProxy();
+      ipc.send({ type: 'agents.reload', data: currentAgents });
       Object.assign(config, newConfig);
     } catch (err) {
       console.error('SIGHUP reload failed:', err.message);
