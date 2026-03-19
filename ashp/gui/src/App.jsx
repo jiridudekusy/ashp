@@ -15,7 +15,7 @@ function EventBridge({ credentials, onConnect, onDisconnect, children }) {
     for (const fn of subscribers) fn(type, data);
   }, [subscribers]);
 
-  useSSE('/api/events', { onEvent, token: credentials, onConnect, onDisconnect });
+  useSSE('/api/events', { onEvent, credentials, onConnect, onDisconnect });
 
   const events = useMemo(() => ({
     subscribe: (fn) => subscribers.add(fn),

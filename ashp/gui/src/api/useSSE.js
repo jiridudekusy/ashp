@@ -1,32 +1,73 @@
 import { useEffect, useRef, useCallback } from 'react';
 
-export function useSSE(url, { onEvent, token, onConnect, onDisconnect } = {}) {
-  const esRef = useRef(null);
+export function useSSE(url, { onEvent, credentials, onConnect, onDisconnect } = {}) {
+  const abortRef = useRef(null);
   const reconnectTimer = useRef(null);
 
   const connect = useCallback(() => {
-    const es = new EventSource(`${url}?token=${encodeURIComponent(token || '')}`);
-    esRef.current = es;
-    es.onopen = () => onConnect?.();
+    if (!credentials) return;
 
-    const eventTypes = ['request.allowed', 'request.blocked', 'approval.needed', 'approval.resolved', 'rules.changed'];
-    for (const type of eventTypes) {
-      es.addEventListener(type, (e) => {
-        if (onEvent) onEvent(type, JSON.parse(e.data));
-      });
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    async function run() {
+      try {
+        const res = await fetch(url, {
+          headers: { Authorization: `Basic ${credentials}` },
+          signal: controller.signal,
+        });
+        if (!res.ok) {
+          onDisconnect?.();
+          reconnectTimer.current = setTimeout(connect, 3000);
+          return;
+        }
+
+        onConnect?.();
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop(); // keep incomplete line
+
+          let currentEvent = null;
+          for (const line of lines) {
+            if (line.startsWith('event: ')) {
+              currentEvent = line.slice(7).trim();
+            } else if (line.startsWith('data: ') && currentEvent) {
+              try {
+                const data = JSON.parse(line.slice(6));
+                if (onEvent) onEvent(currentEvent, data);
+              } catch { /* ignore parse errors */ }
+              currentEvent = null;
+            } else if (line === '') {
+              currentEvent = null;
+            }
+          }
+        }
+        // Stream ended — reconnect
+        onDisconnect?.();
+        reconnectTimer.current = setTimeout(connect, 3000);
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          onDisconnect?.();
+          reconnectTimer.current = setTimeout(connect, 3000);
+        }
+      }
     }
 
-    es.onerror = () => {
-      onDisconnect?.();
-      es.close();
-      reconnectTimer.current = setTimeout(connect, 3000);
-    };
-  }, [url, token, onEvent, onConnect, onDisconnect]);
+    run();
+  }, [url, credentials, onEvent, onConnect, onDisconnect]);
 
   useEffect(() => {
     connect();
     return () => {
-      if (esRef.current) esRef.current.close();
+      if (abortRef.current) abortRef.current.abort();
       if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
     };
   }, [connect]);
