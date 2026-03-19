@@ -46,7 +46,17 @@ describe('SQLite connection factory', () => {
     assert.ok(tables.includes('rules'), 'rules table missing');
     assert.ok(tables.includes('request_log'), 'request_log table missing');
     assert.ok(tables.includes('approval_queue'), 'approval_queue table missing');
+    assert.ok(tables.includes('agents'), 'agents table missing');
     db.close();
+  });
+
+  it('is idempotent — second open of migrated DB succeeds', () => {
+    const db1 = createConnection(join(dir, 'second.db'), 'test-key');
+    db1.close();
+    const db2 = createConnection(join(dir, 'second.db'), 'test-key');
+    const { user_version } = db2.prepare('PRAGMA user_version').get();
+    assert.equal(user_version, 1);
+    db2.close();
   });
 
   describe('schema migrations', () => {
