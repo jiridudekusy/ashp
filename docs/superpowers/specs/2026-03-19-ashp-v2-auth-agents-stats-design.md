@@ -106,7 +106,7 @@ class AgentsDAO {
 `SqliteAgentsDAO` in `server/src/dao/sqlite/agents.js`:
 
 - `create()` — generates random token, bcrypt hashes it, inserts row, returns plaintext token once
-- `delete()` — deletes agent AND associated `request_log` rows (`DELETE FROM request_log WHERE agent_id = ?` then `DELETE FROM agents WHERE id = ?`)
+- `delete()` — deletes agent AND associated `request_log` rows. Note: `request_log.agent_id` stores the agent's string name (not integer FK), so cascade is: `DELETE FROM request_log WHERE agent_id = (SELECT name FROM agents WHERE id = ?)` then `DELETE FROM agents WHERE id = ?`
 - `authenticate()` — finds by name, checks enabled, bcrypt compares token
 - `incrementRequestCount()` — `UPDATE agents SET request_count = request_count + 1 WHERE name = ?`
 
@@ -154,7 +154,7 @@ The `--auth` CLI flag for the Go proxy is replaced by `--agents-from-ipc` (or si
 1. Go proxy starts, connects to IPC
 2. Node sends `agents.reload` with current agent list
 3. On HTTP/CONNECT request, proxy extracts Basic Auth credentials
-4. Proxy looks up agent by name in memory, checks enabled, bcrypt compares token
+4. Proxy looks up agent by name in memory, checks enabled, verifies token against bcrypt hash. To avoid ~100ms bcrypt cost on every request, Go proxy maintains an in-memory auth cache: `sha256(name+token)` → `bool`, with short TTL (e.g., 60s). Cache hit skips bcrypt. Cache miss runs bcrypt and stores result. Cache is cleared on `agents.reload`.
 5. If invalid → 407 Proxy Authentication Required
 6. If valid → `agent_id` set in context, request proceeds
 
@@ -211,7 +211,10 @@ Incremented in Node when processing IPC messages (`request.logged`, `request.blo
 
 ### Detail View
 
-No new endpoints for agent activity detail. Use existing `GET /api/logs?agent_id=<name>` to see what a specific agent did. The `request_log` table already stores `agent_id` on every entry.
+For agent activity detail, use `GET /api/logs?agent_id=<name>`. The `request_log` table already stores `agent_id` on every entry, but the logs API and DAO currently lack an `agent_id` filter — this must be added:
+
+- `SqliteRequestLogDAO.query()` — add `agent_id` to supported filter parameters
+- `GET /api/logs` — accept `agent_id` query parameter
 
 ### API
 
@@ -228,7 +231,7 @@ On startup, check if `agents` table exists. If not, run:
 3. `ALTER TABLE rules ADD COLUMN hit_count_today ...`
 4. `ALTER TABLE rules ADD COLUMN hit_count_date ...`
 
-Use a simple version check (e.g., `PRAGMA user_version`) to track schema version.
+Use `PRAGMA user_version` to track schema version. Current schema (no versioning) is version 0. After v2 migration: version 1. The existing `CREATE TABLE IF NOT EXISTS` pattern in `connection.js` remains for initial setup; versioned migrations run after.
 
 ### Config Migration
 
@@ -250,6 +253,8 @@ Use a simple version check (e.g., `PRAGMA user_version`) to track schema version
 - `dao/interfaces.js` — add `AgentsDAO`
 - `dao/sqlite/agents.js` — new `SqliteAgentsDAO`
 - `dao/sqlite/rules.js` — add `incrementHitCount()`
+- `dao/sqlite/request-log.js` — add `agent_id` filter to `query()`
+- `api/logs.js` — accept `agent_id` query parameter
 - `dao/sqlite/connection.js` — schema migration for agents table + rules columns
 - `api/agents.js` — new routes
 - `api/events.js` — SSE via fetch/ReadableStream with Basic Auth (GUI side)
@@ -263,7 +268,7 @@ Use a simple version check (e.g., `PRAGMA user_version`) to track schema version
 
 ### React (gui/)
 - Agent management page (list, create, enable/disable, delete, rotate token)
-- Rules list shows hit_count / hit_count_today
+- Rules list shows hit_count / hit_count_today with hit_count_date (to contextualize stale today counts)
 - Agent list shows request_count
 - SSE client uses fetch+ReadableStream instead of EventSource
 - Login uses Basic Auth instead of Bearer token
