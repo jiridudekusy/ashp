@@ -4,7 +4,7 @@ import styles from './Agents.module.css';
 
 export default function Agents({ api }) {
   const [agents, setAgents] = useState([]);
-  const [showCreate, setShowCreate] = useState(false);
+  const [editing, setEditing] = useState(null); // null | 'new' | agent object
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [createdToken, setCreatedToken] = useState(null);
@@ -16,13 +16,31 @@ export default function Agents({ api }) {
 
   useEffect(() => { load(); }, [load]);
 
-  const handleCreate = async (e) => {
-    e.preventDefault();
-    const agent = await api.createAgent({ name, description });
-    setCreatedToken({ name: agent.name, token: agent.token });
+  function openCreate() {
     setName('');
     setDescription('');
-    setShowCreate(false);
+    setEditing('new');
+  }
+
+  function openEdit(agent) {
+    setName(agent.name);
+    setDescription(agent.description || '');
+    setEditing(agent);
+  }
+
+  function closeModal() {
+    setEditing(null);
+  }
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    if (editing === 'new') {
+      const agent = await api.createAgent({ name, description });
+      setCreatedToken({ name: agent.name, token: agent.token });
+    } else {
+      await api.updateAgent(editing.id, { name, description });
+    }
+    closeModal();
     load();
   };
 
@@ -50,11 +68,11 @@ export default function Agents({ api }) {
           <h2 className={styles.title}>Agents</h2>
           <span className={styles.count}>{agents.length} agent{agents.length !== 1 ? 's' : ''}</span>
         </div>
-        <button className={styles.addBtn} onClick={() => setShowCreate(true)}>+ Create Agent</button>
+        <button className={styles.addBtn} onClick={openCreate}>+ Create Agent</button>
       </div>
 
-      <Modal open={showCreate} onClose={() => setShowCreate(false)} title="Create Agent">
-        <form className={styles.form} onSubmit={handleCreate}>
+      <Modal open={!!editing} onClose={closeModal} title={editing === 'new' ? 'Create Agent' : 'Edit Agent'}>
+        <form className={styles.form} onSubmit={handleSave}>
           <div className={styles.fieldGroup}>
             <label className={styles.label}>Name</label>
             <input className={styles.input} value={name} onChange={e => setName(e.target.value)}
@@ -66,8 +84,8 @@ export default function Agents({ api }) {
               placeholder="What this agent is used for" />
           </div>
           <div className={styles.formActions}>
-            <button className={styles.cancelBtn} type="button" onClick={() => setShowCreate(false)}>Cancel</button>
-            <button className={styles.submitBtn} type="submit">Create</button>
+            <button className={styles.cancelBtn} type="button" onClick={closeModal}>Cancel</button>
+            <button className={styles.submitBtn} type="submit">{editing === 'new' ? 'Create' : 'Save'}</button>
           </div>
         </form>
       </Modal>
@@ -106,6 +124,7 @@ export default function Agents({ api }) {
               </span>
               <span>{new Date(a.created_at).toLocaleDateString()}</span>
               <span className={styles.cellActions}>
+                <button className={styles.editLink} onClick={() => openEdit(a)}>Edit</button>
                 <button className={styles.toggleLink} onClick={() => handleToggle(a)}>
                   {a.enabled ? 'Disable' : 'Enable'}
                 </button>
