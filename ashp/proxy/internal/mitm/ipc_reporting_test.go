@@ -19,6 +19,7 @@ import (
 	calib "github.com/jdk/ashp/proxy/internal/ca"
 	"github.com/jdk/ashp/proxy/internal/ipc"
 	"github.com/jdk/ashp/proxy/internal/rules"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // ipcCapture starts a unix socket server that captures all IPC messages sent by the proxy.
@@ -94,7 +95,11 @@ func setupProxyWithIPC(t *testing.T, ipcSock string, defaultBehavior string, hol
 	ca, _ := calib.LoadCA(filepath.Join(dir, "ca.crt"), filepath.Join(dir, "ca.key"), []byte("pass"))
 
 	eval := rules.NewEvaluator()
-	authH := auth.NewHandler(map[string]string{"agent1": "secret"})
+	authH := auth.NewHandler()
+	hash, _ := bcrypt.GenerateFromPassword([]byte("secret"), bcrypt.DefaultCost)
+	authH.Reload([]auth.Agent{
+		{Name: "agent1", TokenHash: string(hash), Enabled: true},
+	})
 	logKey := bytes.Repeat([]byte{0xab}, 32)
 
 	client := ipc.NewClient(ipcSock)

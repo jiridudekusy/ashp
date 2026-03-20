@@ -18,6 +18,7 @@ export function TopNav({ pendingCount = 0, proxyConnected = false, onLogout }) {
           Approvals
           {pendingCount > 0 && <span className={styles.badge}>{pendingCount}</span>}
         </NavLink>
+        <NavLink to="/agents" className={({ isActive }) => isActive ? styles.tabActive : styles.tab}>Agents</NavLink>
       </div>
       <div className={styles.right}>
         <div className={styles.status}>

@@ -61,4 +61,16 @@ describe('config', () => {
     const file = writeConfig({ rules: { source: 'invalid' } });
     assert.throws(() => loadConfig({ config: file }), /source/);
   });
+
+  it('management.auth is required', () => {
+    const file = writeConfig({});
+    const cfg = loadConfig({ config: file });
+    assert.ok(cfg.management.auth);
+  });
+
+  it('proxy section has no auth field', () => {
+    const file = writeConfig({});
+    const cfg = loadConfig({ config: file });
+    assert.equal(cfg.proxy.auth, undefined);
+  });
 });

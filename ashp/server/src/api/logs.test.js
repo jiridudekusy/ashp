@@ -170,6 +170,20 @@ describe('logs API', () => {
     }
   });
 
+  it('GET /api/logs?agent_id= filters by agent', async () => {
+    const app = setup();
+    const server = await listen(app);
+    try {
+      const passedFilters = {};
+      mockRequestLogDAO.query = async (filters) => { Object.assign(passedFilters, filters); return []; };
+      const res = await request(server, { path: '/api/logs?agent_id=agent1' });
+      assert.equal(res.status, 200);
+      assert.equal(passedFilters.agent_id, 'agent1');
+    } finally {
+      server.close();
+    }
+  });
+
   it('GET /api/logs/:id/request-body returns 404 when no body ref', async () => {
     const app = setup();
     const server = await listen(app);

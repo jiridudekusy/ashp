@@ -2,19 +2,29 @@ import { useState } from 'react';
 import styles from './Login.module.css';
 
 export default function Login({ onLogin }) {
-  const [token, setToken] = useState('');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(e) {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
+    setError('');
+    const credentials = btoa(`${username}:${password}`);
     try {
-      const res = await fetch('/api/status', {
-        headers: { 'Authorization': `Bearer ${token}` },
+      // Validate against a protected endpoint (not /api/status which is public)
+      const res = await fetch('/api/rules', {
+        headers: { Authorization: `Basic ${credentials}` },
       });
-      if (res.ok) { onLogin(token); }
-      else { setError('Invalid token'); }
-    } catch { setError('Connection failed'); }
-  }
+      if (!res.ok) throw new Error('Invalid credentials');
+      onLogin(credentials);
+    } catch {
+      setError('Invalid username or password');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className={styles.page}>
@@ -22,10 +32,15 @@ export default function Login({ onLogin }) {
         <h1 className={styles.brand}>ASHP</h1>
         <p className={styles.subtitle}>AI Security HTTP Proxy</p>
         <form onSubmit={handleSubmit}>
-          <label className={styles.label}>Bearer Token</label>
-          <input className={styles.input} type="password" value={token} onChange={e => setToken(e.target.value)}
-                 placeholder="Enter your bearer token" required />
-          <button className={styles.button} type="submit">Login</button>
+          <label className={styles.label}>Username</label>
+          <input className={styles.input} type="text" value={username}
+            onChange={e => setUsername(e.target.value)} placeholder="Username" required autoFocus />
+          <label className={styles.label}>Password</label>
+          <input className={styles.input} type="password" value={password}
+            onChange={e => setPassword(e.target.value)} placeholder="Password" required />
+          <button className={styles.button} type="submit" disabled={loading}>
+            {loading ? 'Logging in...' : 'Login'}
+          </button>
           {error && <p className={styles.error}>{error}</p>}
         </form>
       </div>

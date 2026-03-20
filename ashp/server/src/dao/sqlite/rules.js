@@ -2,7 +2,14 @@ import { RulesDAO } from '../interfaces.js';
 
 function deserialize(row) {
   if (!row) return null;
-  return { ...row, methods: JSON.parse(row.methods), enabled: !!row.enabled };
+  return {
+    ...row,
+    methods: JSON.parse(row.methods),
+    enabled: !!row.enabled,
+    hit_count: row.hit_count ?? 0,
+    hit_count_today: row.hit_count_today ?? 0,
+    hit_count_date: row.hit_count_date ?? null,
+  };
 }
 
 export class SqliteRulesDAO extends RulesDAO {
@@ -21,6 +28,16 @@ export class SqliteRulesDAO extends RulesDAO {
         @agent_id,@log_request_body,@log_response_body,@default_behavior,@enabled)`),
       delete: db.prepare('DELETE FROM rules WHERE id = ?'),
       listEnabled: db.prepare('SELECT * FROM rules WHERE enabled=1 ORDER BY priority DESC'),
+      incrementHitCount: db.prepare(`
+        UPDATE rules SET
+          hit_count = hit_count + 1,
+          hit_count_today = CASE
+            WHEN hit_count_date = date('now') THEN hit_count_today + 1
+            ELSE 1
+          END,
+          hit_count_date = date('now')
+        WHERE id = ?
+      `),
     };
   }
 
@@ -65,6 +82,10 @@ export class SqliteRulesDAO extends RulesDAO {
 
   async delete(id) {
     this.#stmts.delete.run(id);
+  }
+
+  async incrementHitCount(ruleId) {
+    this.#stmts.incrementHitCount.run(ruleId);
   }
 
   async match(url, method) {

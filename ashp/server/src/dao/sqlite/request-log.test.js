@@ -81,6 +81,15 @@ describe('SqliteRequestLogDAO', () => {
     assert.equal(results.length, 2);
   });
 
+  it('query filters by agent_id', async () => {
+    await dao.insert({ method: 'GET', url: 'http://a.com', decision: 'allowed', agent_id: 'agent1' });
+    await dao.insert({ method: 'GET', url: 'http://b.com', decision: 'allowed', agent_id: 'agent2' });
+    await dao.insert({ method: 'GET', url: 'http://c.com', decision: 'denied', agent_id: 'agent1' });
+    const results = await dao.query({ agent_id: 'agent1' });
+    assert.equal(results.length, 2);
+    results.forEach(r => assert.equal(r.agent_id, 'agent1'));
+  });
+
   it('cleanup deletes entries older than cutoff', async () => {
     await dao.insert(sampleEntry());
     // Insert an entry and manually backdate it

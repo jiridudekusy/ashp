@@ -1,10 +1,13 @@
 class AuthError extends Error { constructor() { super('Unauthorized'); this.name = 'AuthError'; } }
 
-function createClient(baseURL = '', token = '') {
+function createClient(baseURL = '', credentials = '') {
   async function request(method, path, body) {
     const opts = {
       method,
-      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      headers: {
+        'Authorization': `Basic ${credentials}`,
+        'Content-Type': 'application/json',
+      },
     };
     if (body) opts.body = JSON.stringify(body);
     const res = await fetch(`${baseURL}${path}`, opts);
@@ -22,7 +25,7 @@ function createClient(baseURL = '', token = '') {
   async function requestRaw(method, path) {
     const res = await fetch(`${baseURL}${path}`, {
       method,
-      headers: { 'Authorization': `Bearer ${token}` },
+      headers: { 'Authorization': `Basic ${credentials}` },
     });
     if (res.status === 401) throw new AuthError();
     if (!res.ok) {
@@ -48,6 +51,15 @@ function createClient(baseURL = '', token = '') {
     getApprovals:     ()          => request('GET', '/api/approvals'),
     resolveApproval:  (id, body)  => request('POST', `/api/approvals/${id}/resolve`, body),
     getStatus:        ()          => request('GET', '/api/status'),
+    // New agent methods
+    getAgents:        ()          => request('GET', '/api/agents'),
+    getAgent:         (id)        => request('GET', `/api/agents/${id}`),
+    createAgent:      (data)      => request('POST', '/api/agents', data),
+    updateAgent:      (id, data)  => request('PUT', `/api/agents/${id}`, data),
+    deleteAgent:      (id)        => request('DELETE', `/api/agents/${id}`),
+    rotateToken:      (id)        => request('POST', `/api/agents/${id}/rotate-token`),
+    // Auth credentials for SSE
+    credentials,
   };
 }
 

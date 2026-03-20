@@ -12,6 +12,7 @@ import (
 	"github.com/jdk/ashp/proxy/internal/auth"
 	calib "github.com/jdk/ashp/proxy/internal/ca"
 	"github.com/jdk/ashp/proxy/internal/rules"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func setupProxy(t *testing.T) (*Proxy, string) {
@@ -20,7 +21,11 @@ func setupProxy(t *testing.T) (*Proxy, string) {
 	ca, _ := calib.LoadCA(filepath.Join(dir, "ca.crt"), filepath.Join(dir, "ca.key"), []byte("pass"))
 
 	eval := rules.NewEvaluator()
-	authH := auth.NewHandler(map[string]string{"agent1": "secret"})
+	authH := auth.NewHandler()
+	hash, _ := bcrypt.GenerateFromPassword([]byte("secret"), bcrypt.DefaultCost)
+	authH.Reload([]auth.Agent{
+		{Name: "agent1", TokenHash: string(hash), Enabled: true},
+	})
 	logKey := bytes.Repeat([]byte{0xab}, 32)
 
 	p := New(Config{

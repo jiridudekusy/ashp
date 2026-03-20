@@ -123,4 +123,23 @@ describe('SqliteRulesDAO', () => {
     const result = await dao.match('https://other.com', 'GET');
     assert.equal(result, null);
   });
+
+  describe('hit count', () => {
+    it('incrementHitCount increments total and today', async () => {
+      const rule = await dao.create({ name: 'r1', url_pattern: '^http://x', methods: [], action: 'allow' });
+      await dao.incrementHitCount(rule.id);
+      await dao.incrementHitCount(rule.id);
+      const updated = await dao.get(rule.id);
+      assert.equal(updated.hit_count, 2);
+      assert.equal(updated.hit_count_today, 2);
+      assert.ok(updated.hit_count_date); // should be today's date
+    });
+
+    it('list includes hit_count fields', async () => {
+      await dao.create({ name: 'r1', url_pattern: '^http://x', methods: [], action: 'allow' });
+      const list = await dao.list();
+      assert.equal(list[0].hit_count, 0);
+      assert.equal(list[0].hit_count_today, 0);
+    });
+  });
 });

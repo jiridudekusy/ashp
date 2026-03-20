@@ -37,6 +37,7 @@ export class SqliteRequestLogDAO extends RequestLogDAO {
     if (filters.url)      { conds.push('url LIKE @url');      params.url = `%${filters.url}%`; }
     if (filters.from)     { conds.push('timestamp>=@from');   params.from = filters.from; }
     if (filters.to)       { conds.push('timestamp<=@to');     params.to = filters.to; }
+    if (filters.agent_id) { conds.push('agent_id=@agent_id'); params.agent_id = filters.agent_id; }
     const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
     return this.#db.prepare(
       `SELECT * FROM request_log ${where} ORDER BY id DESC LIMIT @limit OFFSET @offset`

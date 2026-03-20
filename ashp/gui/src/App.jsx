@@ -8,14 +8,15 @@ import Dashboard from './pages/Dashboard';
 import Rules from './pages/Rules';
 import Logs from './pages/Logs';
 import Approvals from './pages/Approvals';
+import Agents from './pages/Agents';
 
-function EventBridge({ token, onConnect, onDisconnect, children }) {
+function EventBridge({ credentials, onConnect, onDisconnect, children }) {
   const subscribers = useMemo(() => new Set(), []);
   const onEvent = useCallback((type, data) => {
     for (const fn of subscribers) fn(type, data);
   }, [subscribers]);
 
-  useSSE('/api/events', { onEvent, token, onConnect, onDisconnect });
+  useSSE('/api/events', { onEvent, credentials, onConnect, onDisconnect });
 
   const events = useMemo(() => ({
     subscribe: (fn) => subscribers.add(fn),
@@ -26,11 +27,11 @@ function EventBridge({ token, onConnect, onDisconnect, children }) {
 }
 
 export default function App() {
-  const [token, setToken] = useState(sessionStorage.getItem('ashp_token'));
+  const [credentials, setCredentials] = useState(sessionStorage.getItem('ashp_credentials'));
   const [pendingCount, setPendingCount] = useState(0);
   const [sseConnected, setSseConnected] = useState(false);
   const [proxyConnected, setProxyConnected] = useState(false);
-  const api = useMemo(() => token ? createClient('', token) : null, [token]);
+  const api = useMemo(() => credentials ? createClient('', credentials) : null, [credentials]);
 
   useEffect(() => {
     if (!api) return;
@@ -42,20 +43,20 @@ export default function App() {
     }).catch(() => {});
   }, [api]);
 
-  function handleLogin(t) {
-    sessionStorage.setItem('ashp_token', t);
-    setToken(t);
+  function handleLogin(c) {
+    sessionStorage.setItem('ashp_credentials', c);
+    setCredentials(c);
   }
   function handleLogout() {
-    sessionStorage.removeItem('ashp_token');
-    setToken(null);
+    sessionStorage.removeItem('ashp_credentials');
+    setCredentials(null);
   }
 
-  if (!token) return <Login onLogin={handleLogin} />;
+  if (!credentials) return <Login onLogin={handleLogin} />;
 
   return (
     <EventBridge
-      token={token}
+      credentials={credentials}
       onConnect={() => setSseConnected(true)}
       onDisconnect={() => setSseConnected(false)}
     >
@@ -69,6 +70,7 @@ export default function App() {
                 <Route path="rules" element={<Rules api={api} events={events} />} />
                 <Route path="logs" element={<Logs api={api} events={events} />} />
                 <Route path="approvals" element={<Approvals api={api} events={events} />} />
+                <Route path="agents" element={<Agents api={api} events={events} />} />
               </Route>
             </Routes>
           </BrowserRouter>

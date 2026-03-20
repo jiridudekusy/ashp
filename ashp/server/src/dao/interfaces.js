@@ -7,6 +7,7 @@ export class RulesDAO {
   update(id, rule)   { return notImpl('update'); }
   delete(id)         { return notImpl('delete'); }
   match(url, method) { return notImpl('match'); }
+  incrementHitCount(ruleId) { return notImpl('incrementHitCount'); }
 }
 
 export class RequestLogDAO {
@@ -20,4 +21,16 @@ export class ApprovalQueueDAO {
   enqueue(entry)      { return notImpl('enqueue'); }
   resolve(id, action) { return notImpl('resolve'); }
   listPending()       { return notImpl('listPending'); }
+}
+
+export class AgentsDAO {
+  async list() { throw new Error('Not implemented'); }
+  async get(id) { throw new Error('Not implemented'); }
+  async create(agent) { throw new Error('Not implemented'); }
+  async update(id, fields) { throw new Error('Not implemented'); }
+  async delete(id) { throw new Error('Not implemented'); }
+  async rotateToken(id) { throw new Error('Not implemented'); }
+  async authenticate(name, token) { throw new Error('Not implemented'); }
+  async incrementRequestCount(name) { throw new Error('Not implemented'); }
+  listForProxy() { throw new Error('Not implemented'); }
 }

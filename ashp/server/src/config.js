@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs';
 
 const DEFAULTS = {
-  proxy: { listen: '0.0.0.0:8080', auth: {} },
-  management: { listen: '0.0.0.0:3000' },
+  proxy: { listen: '0.0.0.0:8080' },
+  management: { listen: '0.0.0.0:3000', auth: {} },
   rules: { source: 'db' },
   database: { path: 'data/ashp.db' },
   encryption: {},

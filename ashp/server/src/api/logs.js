@@ -7,7 +7,7 @@ export default function logsRoutes({ requestLogDAO, crypto, config }) {
   r.get('/', async (req, res, next) => {
     try {
       const filters = {};
-      for (const k of ['method', 'decision', 'url', 'from', 'to']) {
+      for (const k of ['method', 'decision', 'url', 'from', 'to', 'agent_id']) {
         if (req.query[k]) filters[k] = req.query[k];
       }
       filters.limit = parseInt(req.query.limit) || 50;

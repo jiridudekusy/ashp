@@ -34,13 +34,16 @@ export default function Logs({ api, events }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [logs, setLogs] = useState([]);
   const [filters, setFilters] = useState({ limit: 50, offset: 0 });
+  const [agentId, setAgentId] = useState('');
   const [selected, setSelected] = useState(null);
   const [ruleEntry, setRuleEntry] = useState(null);
   const [hasNewEntries, setHasNewEntries] = useState(false);
 
   const fetchLogs = useCallback(() => {
-    api.getLogs(filters).then(setLogs);
-  }, [api, filters]);
+    const params = { ...filters };
+    if (agentId) params.agent_id = agentId;
+    api.getLogs(params).then(setLogs);
+  }, [api, filters, agentId]);
 
   useEffect(() => { fetchLogs(); }, [fetchLogs]);
 
@@ -106,6 +109,13 @@ export default function Logs({ api, events }) {
           type="text"
           placeholder="Filter by URL..."
           onChange={e => updateFilter('url', e.target.value)}
+        />
+        <input
+          className={styles.urlFilter}
+          type="text"
+          placeholder="Agent ID"
+          value={agentId}
+          onChange={(e) => setAgentId(e.target.value)}
         />
       </div>
 

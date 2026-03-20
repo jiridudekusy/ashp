@@ -46,6 +46,51 @@ describe('SQLite connection factory', () => {
     assert.ok(tables.includes('rules'), 'rules table missing');
     assert.ok(tables.includes('request_log'), 'request_log table missing');
     assert.ok(tables.includes('approval_queue'), 'approval_queue table missing');
+    assert.ok(tables.includes('agents'), 'agents table missing');
     db.close();
+  });
+
+  it('is idempotent — second open of migrated DB succeeds', () => {
+    const db1 = createConnection(join(dir, 'second.db'), 'test-key');
+    db1.close();
+    const db2 = createConnection(join(dir, 'second.db'), 'test-key');
+    const { user_version } = db2.prepare('PRAGMA user_version').get();
+    assert.equal(user_version, 2);
+    db2.close();
+  });
+
+  describe('schema migrations', () => {
+    let db;
+
+    beforeEach(() => {
+      db = createConnection(join(dir, 'test.db'), 'test-key');
+    });
+
+    afterEach(() => {
+      db.close();
+    });
+
+    it('creates agents table with correct schema', () => {
+      const cols = db.prepare("PRAGMA table_info('agents')").all().map(c => c.name);
+      assert.ok(cols.includes('id'));
+      assert.ok(cols.includes('name'));
+      assert.ok(cols.includes('token_hash'));
+      assert.ok(cols.includes('enabled'));
+      assert.ok(cols.includes('request_count'));
+      assert.ok(cols.includes('created_at'));
+      assert.ok(cols.includes('description'));
+    });
+
+    it('rules table has hit_count columns', () => {
+      const cols = db.prepare("PRAGMA table_info('rules')").all().map(c => c.name);
+      assert.ok(cols.includes('hit_count'));
+      assert.ok(cols.includes('hit_count_today'));
+      assert.ok(cols.includes('hit_count_date'));
+    });
+
+    it('tracks schema version via user_version', () => {
+      const { user_version } = db.prepare('PRAGMA user_version').get();
+      assert.equal(user_version, 2);
+    });
   });
 });
