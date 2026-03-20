@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import styles from './Agents.module.css';
 
 export default function Agents({ api }) {
   const [agents, setAgents] = useState([]);
@@ -38,59 +39,62 @@ export default function Agents({ api }) {
   };
 
   return (
-    <div className="page">
-      <h2>Agents</h2>
-
-      <form onSubmit={handleCreate} className="inline-form">
-        <input type="text" placeholder="Agent name" value={name}
-          onChange={(e) => setName(e.target.value)} required />
-        <button type="submit">Create Agent</button>
-      </form>
+    <div>
+      <div className={styles.header}>
+        <div className={styles.headerLeft}>
+          <h2 className={styles.title}>Agents</h2>
+          <span className={styles.count}>{agents.length} agent{agents.length !== 1 ? 's' : ''}</span>
+        </div>
+        <form className={styles.createGroup} onSubmit={handleCreate}>
+          <input className={styles.createInput} type="text" placeholder="Agent name" value={name}
+            onChange={(e) => setName(e.target.value)} required />
+          <button className={styles.createBtn} type="submit">+ Create</button>
+        </form>
+      </div>
 
       {createdToken && (
-        <div className="token-display success">
-          <strong>Agent &quot;{createdToken.name}&quot; created.</strong> Token (shown only once):
-          <code>{createdToken.token}</code>
-          <button onClick={() => setCreatedToken(null)}>Dismiss</button>
+        <div className={styles.tokenBanner}>
+          <strong>Agent "{createdToken.name}" created.</strong> Token (shown only once):
+          <code className={styles.tokenCode}>{createdToken.token}</code>
+          <button className={styles.dismissBtn} onClick={() => setCreatedToken(null)}>Dismiss</button>
         </div>
       )}
 
       {rotatedToken && (
-        <div className="token-display success">
-          <strong>Token rotated for &quot;{rotatedToken.name}&quot;.</strong> New token (shown only once):
-          <code>{rotatedToken.token}</code>
-          <button onClick={() => setRotatedToken(null)}>Dismiss</button>
+        <div className={styles.tokenBanner}>
+          <strong>Token rotated for "{rotatedToken.name}".</strong> New token (shown only once):
+          <code className={styles.tokenCode}>{rotatedToken.token}</code>
+          <button className={styles.dismissBtn} onClick={() => setRotatedToken(null)}>Dismiss</button>
         </div>
       )}
 
-      <table>
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Requests</th>
-            <th>Status</th>
-            <th>Created</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
+      {agents.length === 0 ? (
+        <div className={styles.empty}>No agents configured yet</div>
+      ) : (
+        <div className={styles.table}>
+          <div className={styles.tableHeader}>
+            <span>Name</span><span>Requests</span><span>Status</span><span>Created</span><span></span>
+          </div>
           {agents.map(a => (
-            <tr key={a.id} className={a.enabled ? '' : 'disabled'}>
-              <td>{a.name}</td>
-              <td>{a.request_count}</td>
-              <td>{a.enabled ? 'Active' : 'Disabled'}</td>
-              <td>{new Date(a.created_at).toLocaleDateString()}</td>
-              <td>
-                <button onClick={() => handleToggle(a)}>
+            <div key={a.id} className={a.enabled ? styles.tableRow : styles.tableRowDisabled}>
+              <span>{a.name}</span>
+              <span>{a.request_count}</span>
+              <span>
+                <span className={a.enabled ? styles.dotGreen : styles.dotGrey} />
+                {a.enabled ? 'Active' : 'Disabled'}
+              </span>
+              <span>{new Date(a.created_at).toLocaleDateString()}</span>
+              <span className={styles.cellActions}>
+                <button className={styles.toggleLink} onClick={() => handleToggle(a)}>
                   {a.enabled ? 'Disable' : 'Enable'}
                 </button>
-                <button onClick={() => handleRotate(a)}>Rotate Token</button>
-                <button onClick={() => handleDelete(a)} className="danger">Delete</button>
-              </td>
-            </tr>
+                <button className={styles.rotateLink} onClick={() => handleRotate(a)}>Rotate</button>
+                <button className={styles.deleteLink} onClick={() => handleDelete(a)}>Delete</button>
+              </span>
+            </div>
           ))}
-        </tbody>
-      </table>
+        </div>
+      )}
     </div>
   );
 }
