@@ -33,6 +33,7 @@ export class SqliteAgentsDAO extends AgentsDAO {
       insert: db.prepare('INSERT INTO agents (name, token_hash) VALUES (@name, @token_hash)'),
       update: db.prepare('UPDATE agents SET name = @name, enabled = @enabled WHERE id = @id'),
       delete: db.prepare('DELETE FROM agents WHERE id = ?'),
+      deleteApprovals: db.prepare('DELETE FROM approval_queue WHERE request_log_id IN (SELECT id FROM request_log WHERE agent_id = (SELECT name FROM agents WHERE id = ?))'),
       deleteRequestLogs: db.prepare('DELETE FROM request_log WHERE agent_id = (SELECT name FROM agents WHERE id = ?)'),
       updateTokenHash: db.prepare('UPDATE agents SET token_hash = ? WHERE id = ?'),
       incrementRequestCount: db.prepare('UPDATE agents SET request_count = request_count + 1 WHERE name = ?'),
@@ -69,6 +70,7 @@ export class SqliteAgentsDAO extends AgentsDAO {
 
   async delete(id) {
     this.#db.transaction(() => {
+      this.#stmts.deleteApprovals.run(id);
       this.#stmts.deleteRequestLogs.run(id);
       this.#stmts.delete.run(id);
     })();
