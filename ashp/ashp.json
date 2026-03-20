@@ -11,5 +11,6 @@
   "logging": { "request_body": "full", "response_body": "truncate:65536", "retention_days": 30 },
   "database": { "path": "data/ashp.db", "encryption_key": "env:ASHP_DB_KEY" },
   "encryption": { "log_key": "env:ASHP_LOG_KEY", "ca_key": "env:ASHP_CA_KEY" },
-  "webhooks": []
+  "webhooks": [],
+  "ipc_socket": "/tmp/ashp.sock"
 }

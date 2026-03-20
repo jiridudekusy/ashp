@@ -55,7 +55,7 @@ stop_all() {
   kill_pid proxy
   kill_pid server
   kill_pid gui
-  rm -f "$ASHP_DIR/data/ashp.sock"
+  rm -f "$ASHP_DIR/data/ashp.sock" 2>/dev/null || true
   sleep 1
   # Safety: kill anything still on our ports
   kill_port 8080
@@ -94,9 +94,8 @@ start_proxy() {
   echo "Starting proxy (default_behavior=$DEFAULT_BEHAVIOR)..."
   cd "$ASHP_DIR"
   proxy/ashp-proxy \
-    --socket data/ashp.sock \
+    --socket /tmp/ashp.sock \
     --listen 0.0.0.0:8080 \
-    --auth '{"agent1":"change-me-agent-token"}' \
     --ca-pass "$ASHP_CA_KEY" \
     --log-key "env:ASHP_LOG_KEY" \
     --default-behavior "$DEFAULT_BEHAVIOR" \
@@ -143,8 +142,8 @@ start_all() {
 
   echo ""
   echo "=== ASHP Dev Stack Running ==="
-  echo "  Proxy:      http://localhost:8080  (user: agent1 / pass: change-me-agent-token)"
-  echo "  API:        http://localhost:3000  (Bearer: change-me-mgmt-token)"
+  echo "  Proxy:      http://localhost:8080  (agents managed via API)"
+  echo "  API:        http://localhost:3000  (Basic Auth: admin / change-me-admin-password)"
   echo "  GUI:        http://localhost:5173"
   echo "  CA cert:    $ASHP_DIR/data/ca/root.crt"
   echo "  Logs:       $LOG_DIR/{server,proxy,gui}.log"
