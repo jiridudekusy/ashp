@@ -3,17 +3,19 @@
 .title { font-size: 18px; font-weight: 600; color: var(--color-text); margin: 0; }
 .count { font-size: 12px; color: var(--color-text-muted); }
 
-.createGroup {
-  display: flex;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  overflow: hidden;
-  background: var(--color-bg-card);
-}
-.createInput { border: none; padding: 6px 10px; font-size: 12px; width: 200px; outline: none; color: var(--color-text); background: transparent; }
-.createInput::placeholder { color: var(--color-text-muted); }
-.createBtn { background: var(--color-accent); color: white; border: none; padding: 6px 14px; font-size: 12px; font-weight: 500; cursor: pointer; white-space: nowrap; }
-.createBtn:hover { background: var(--color-accent-hover); }
+.addBtn { background: var(--color-accent); color: white; padding: 6px 14px; border-radius: var(--radius); font-size: 12px; font-weight: 500; cursor: pointer; border: none; }
+.addBtn:hover { background: var(--color-accent-hover); }
+
+.form { display: flex; flex-direction: column; gap: 12px; }
+.fieldGroup { display: flex; flex-direction: column; gap: 4px; }
+.label { font-size: 11px; font-weight: 500; color: var(--color-text-secondary); }
+.input { padding: 6px 10px; border: 1px solid var(--color-border); border-radius: var(--radius); font-size: 12px; color: var(--color-text); background: var(--color-bg-card); }
+.input:focus { border-color: var(--color-accent); outline: none; }
+.input::placeholder { color: var(--color-text-muted); }
+.formActions { display: flex; gap: 8px; margin-top: 4px; }
+.submitBtn { flex: 1; padding: 8px; background: var(--color-accent); color: white; border: none; border-radius: var(--radius); font-size: 12px; font-weight: 500; cursor: pointer; }
+.submitBtn:hover { background: var(--color-accent-hover); }
+.cancelBtn { padding: 8px 16px; border: 1px solid var(--color-border); border-radius: var(--radius); background: none; font-size: 12px; color: var(--color-text-secondary); cursor: pointer; }
 
 .tokenBanner {
   background: var(--color-allow-bg);
@@ -52,10 +54,11 @@
 .dismissBtn:hover { color: var(--color-text); }
 
 .table { background: var(--color-bg-card); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; }
-.tableHeader { display: grid; grid-template-columns: 1.5fr 80px 70px 100px 1fr; padding: 10px 14px; background: var(--color-bg-page); border-bottom: 1px solid var(--color-border); font-weight: 500; color: var(--color-text-secondary); font-size: 11px; }
-.tableRow { display: grid; grid-template-columns: 1.5fr 80px 70px 100px 1fr; padding: 10px 14px; border-bottom: 1px solid var(--color-border-light); align-items: center; font-size: 12px; color: var(--color-text); }
+.tableHeader { display: grid; grid-template-columns: 1fr 2fr 80px 80px 90px 140px; padding: 10px 14px; background: var(--color-bg-page); border-bottom: 1px solid var(--color-border); font-weight: 500; color: var(--color-text-secondary); font-size: 11px; }
+.tableRow { display: grid; grid-template-columns: 1fr 2fr 80px 80px 90px 140px; padding: 10px 14px; border-bottom: 1px solid var(--color-border-light); align-items: center; font-size: 12px; color: var(--color-text); }
 .tableRowDisabled { composes: tableRow; opacity: 0.5; }
 
+.cellDesc { color: var(--color-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cellActions { display: flex; gap: 8px; }
 .actionLink { background: none; border: none; font-size: 12px; cursor: pointer; padding: 0; }
 .toggleLink { composes: actionLink; color: var(--color-accent); }

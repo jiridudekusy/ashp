@@ -55,7 +55,7 @@ describe('SQLite connection factory', () => {
     db1.close();
     const db2 = createConnection(join(dir, 'second.db'), 'test-key');
     const { user_version } = db2.prepare('PRAGMA user_version').get();
-    assert.equal(user_version, 1);
+    assert.equal(user_version, 2);
     db2.close();
   });
 
@@ -78,6 +78,7 @@ describe('SQLite connection factory', () => {
       assert.ok(cols.includes('enabled'));
       assert.ok(cols.includes('request_count'));
       assert.ok(cols.includes('created_at'));
+      assert.ok(cols.includes('description'));
     });
 
     it('rules table has hit_count columns', () => {
@@ -89,7 +90,7 @@ describe('SQLite connection factory', () => {
 
     it('tracks schema version via user_version', () => {
       const { user_version } = db.prepare('PRAGMA user_version').get();
-      assert.equal(user_version, 1);
+      assert.equal(user_version, 2);
     });
   });
 });

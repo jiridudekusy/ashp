@@ -70,5 +70,12 @@ export function createConnection(dbPath, encryptionKey) {
     })();
   }
 
+  if (user_version < 2) {
+    db.transaction(() => {
+      db.exec(`ALTER TABLE agents ADD COLUMN description TEXT NOT NULL DEFAULT '';`);
+      db.pragma('user_version = 2');
+    })();
+  }
+
   return db;
 }

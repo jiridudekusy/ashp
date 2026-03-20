@@ -13,6 +13,7 @@ function deserialize(row) {
   return {
     id: row.id,
     name: row.name,
+    description: row.description ?? '',
     enabled: !!row.enabled,
     request_count: row.request_count,
     created_at: row.created_at,
@@ -27,11 +28,11 @@ export class SqliteAgentsDAO extends AgentsDAO {
     super();
     this.#db = db;
     this.#stmts = {
-      list: db.prepare('SELECT id, name, enabled, request_count, created_at FROM agents ORDER BY id'),
-      get: db.prepare('SELECT id, name, enabled, request_count, created_at FROM agents WHERE id = ?'),
+      list: db.prepare('SELECT id, name, description, enabled, request_count, created_at FROM agents ORDER BY id'),
+      get: db.prepare('SELECT id, name, description, enabled, request_count, created_at FROM agents WHERE id = ?'),
       getByName: db.prepare('SELECT * FROM agents WHERE name = ?'),
-      insert: db.prepare('INSERT INTO agents (name, token_hash) VALUES (@name, @token_hash)'),
-      update: db.prepare('UPDATE agents SET name = @name, enabled = @enabled WHERE id = @id'),
+      insert: db.prepare('INSERT INTO agents (name, description, token_hash) VALUES (@name, @description, @token_hash)'),
+      update: db.prepare('UPDATE agents SET name = @name, description = @description, enabled = @enabled WHERE id = @id'),
       delete: db.prepare('DELETE FROM agents WHERE id = ?'),
       deleteApprovals: db.prepare('DELETE FROM approval_queue WHERE request_log_id IN (SELECT id FROM request_log WHERE agent_id = (SELECT name FROM agents WHERE id = ?))'),
       deleteRequestLogs: db.prepare('DELETE FROM request_log WHERE agent_id = (SELECT name FROM agents WHERE id = ?)'),
@@ -49,10 +50,10 @@ export class SqliteAgentsDAO extends AgentsDAO {
     return deserialize(this.#stmts.get.get(id));
   }
 
-  async create({ name }) {
+  async create({ name, description = '' }) {
     const token = generateToken();
     const token_hash = await bcrypt.hash(token, SALT_ROUNDS);
-    const info = this.#stmts.insert.run({ name, token_hash });
+    const info = this.#stmts.insert.run({ name, description, token_hash });
     const agent = deserialize(this.#stmts.get.get(info.lastInsertRowid));
     return { ...agent, token };
   }
@@ -63,6 +64,7 @@ export class SqliteAgentsDAO extends AgentsDAO {
     this.#stmts.update.run({
       id,
       name: fields.name ?? current.name,
+      description: fields.description ?? current.description ?? '',
       enabled: (fields.enabled ?? !!current.enabled) ? 1 : 0,
     });
     return deserialize(this.#stmts.get.get(id));

@@ -1,9 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Modal } from '../components/Modal';
 import styles from './Agents.module.css';
 
 export default function Agents({ api }) {
   const [agents, setAgents] = useState([]);
+  const [showCreate, setShowCreate] = useState(false);
   const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
   const [createdToken, setCreatedToken] = useState(null);
   const [rotatedToken, setRotatedToken] = useState(null);
 
@@ -15,9 +18,11 @@ export default function Agents({ api }) {
 
   const handleCreate = async (e) => {
     e.preventDefault();
-    const agent = await api.createAgent({ name });
+    const agent = await api.createAgent({ name, description });
     setCreatedToken({ name: agent.name, token: agent.token });
     setName('');
+    setDescription('');
+    setShowCreate(false);
     load();
   };
 
@@ -45,12 +50,27 @@ export default function Agents({ api }) {
           <h2 className={styles.title}>Agents</h2>
           <span className={styles.count}>{agents.length} agent{agents.length !== 1 ? 's' : ''}</span>
         </div>
-        <form className={styles.createGroup} onSubmit={handleCreate}>
-          <input className={styles.createInput} type="text" placeholder="Agent name" value={name}
-            onChange={(e) => setName(e.target.value)} required />
-          <button className={styles.createBtn} type="submit">+ Create</button>
-        </form>
+        <button className={styles.addBtn} onClick={() => setShowCreate(true)}>+ Create Agent</button>
       </div>
+
+      <Modal open={showCreate} onClose={() => setShowCreate(false)} title="Create Agent">
+        <form className={styles.form} onSubmit={handleCreate}>
+          <div className={styles.fieldGroup}>
+            <label className={styles.label}>Name</label>
+            <input className={styles.input} value={name} onChange={e => setName(e.target.value)}
+              placeholder="e.g. claude-code-agent" required autoFocus />
+          </div>
+          <div className={styles.fieldGroup}>
+            <label className={styles.label}>Description</label>
+            <input className={styles.input} value={description} onChange={e => setDescription(e.target.value)}
+              placeholder="What this agent is used for" />
+          </div>
+          <div className={styles.formActions}>
+            <button className={styles.cancelBtn} type="button" onClick={() => setShowCreate(false)}>Cancel</button>
+            <button className={styles.submitBtn} type="submit">Create</button>
+          </div>
+        </form>
+      </Modal>
 
       {createdToken && (
         <div className={styles.tokenBanner}>
@@ -73,11 +93,12 @@ export default function Agents({ api }) {
       ) : (
         <div className={styles.table}>
           <div className={styles.tableHeader}>
-            <span>Name</span><span>Requests</span><span>Status</span><span>Created</span><span></span>
+            <span>Name</span><span>Description</span><span>Requests</span><span>Status</span><span>Created</span><span></span>
           </div>
           {agents.map(a => (
             <div key={a.id} className={a.enabled ? styles.tableRow : styles.tableRowDisabled}>
               <span>{a.name}</span>
+              <span className={styles.cellDesc}>{a.description}</span>
               <span>{a.request_count}</span>
               <span>
                 <span className={a.enabled ? styles.dotGreen : styles.dotGrey} />
