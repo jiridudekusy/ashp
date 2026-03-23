@@ -7,11 +7,10 @@
     "node": ">=22.0.0"
   },
   "scripts": {
-    "test": "node --test 'src/**/*.test.js'",
+    "test": "node --test 'test/**/*.test.js'",
     "dev": "node --watch src/index.js"
   },
   "dependencies": {
-    "@journeyapps/sqlcipher": "^5.3.1",
     "bcrypt": "^6.0.0",
     "better-sqlite3": "^12.8.0",
     "express": "^5.1.0"

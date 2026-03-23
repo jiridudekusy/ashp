@@ -7,7 +7,6 @@ services:
     volumes:
       - ./data:/data
       - ./ashp.docker.json:/etc/ashp/ashp.json:ro
-      - ./rules.json:/etc/ashp/rules.json:ro
     environment:
       - ASHP_DB_KEY=dev-db-key-change-in-production
       - ASHP_LOG_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef

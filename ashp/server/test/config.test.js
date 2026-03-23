@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { loadConfig } from './config.js';
+import { loadConfig } from '../src/config.js';
 
 describe('config', () => {
   let dir;

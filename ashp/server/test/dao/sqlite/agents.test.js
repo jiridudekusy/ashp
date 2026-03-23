@@ -1,7 +1,7 @@
 import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { createConnection } from './connection.js';
-import { SqliteAgentsDAO } from './agents.js';
+import { createConnection } from '../../../src/dao/sqlite/connection.js';
+import { SqliteAgentsDAO } from '../../../src/dao/sqlite/agents.js';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';

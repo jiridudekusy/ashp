@@ -40,7 +40,7 @@ describe('startServer integration', () => {
 
   it('starts server, GET /api/status returns 200', async () => {
     const { configPath, password } = makeTempConfig();
-    const { startServer } = await import('./index.js');
+    const { startServer } = await import('../src/index.js');
     instance = await startServer({ config: configPath });
 
     const port = instance.server.address().port;
@@ -55,7 +55,7 @@ describe('startServer integration', () => {
 
   it('basic auth required on all API routes', async () => {
     const { configPath } = makeTempConfig();
-    const { startServer } = await import('./index.js');
+    const { startServer } = await import('../src/index.js');
     instance = await startServer({ config: configPath });
 
     const port = instance.server.address().port;
@@ -66,7 +66,7 @@ describe('startServer integration', () => {
 
   it('agent CRUD lifecycle — create, list, rotate, delete', async () => {
     const { configPath, password } = makeTempConfig();
-    const { startServer } = await import('./index.js');
+    const { startServer } = await import('../src/index.js');
     instance = await startServer({ config: configPath });
 
     const port = instance.server.address().port;
@@ -112,7 +112,7 @@ describe('startServer integration', () => {
 
   it('rules include hit_count fields', async () => {
     const { configPath, password } = makeTempConfig();
-    const { startServer } = await import('./index.js');
+    const { startServer } = await import('../src/index.js');
     instance = await startServer({ config: configPath });
 
     const port = instance.server.address().port;
@@ -145,7 +145,7 @@ describe('startServer integration', () => {
 
   it('logs support agent_id filter', async () => {
     const { configPath, password } = makeTempConfig();
-    const { startServer } = await import('./index.js');
+    const { startServer } = await import('../src/index.js');
     instance = await startServer({ config: configPath });
 
     const port = instance.server.address().port;
@@ -163,7 +163,7 @@ describe('startServer integration', () => {
 
   it('SIGHUP reloads config', async () => {
     const { configPath, password, config } = makeTempConfig();
-    const { startServer } = await import('./index.js');
+    const { startServer } = await import('../src/index.js');
     instance = await startServer({ config: configPath });
 
     const port = instance.server.address().port;

@@ -1,3 +1,8 @@
+/**
+ * @file App shell layout — renders TopNav and the active route via <Outlet>.
+ * Used as the parent route element in App.jsx so all authenticated pages
+ * share the same navigation and status bar.
+ */
 import { Outlet } from 'react-router-dom';
 import { TopNav } from './TopNav.jsx';
 import styles from './Layout.module.css';

@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { createConnection } from './connection.js';
-import { SqliteRequestLogDAO } from './request-log.js';
-import { SqliteApprovalQueueDAO } from './approval-queue.js';
+import { createConnection } from '../../../src/dao/sqlite/connection.js';
+import { SqliteRequestLogDAO } from '../../../src/dao/sqlite/request-log.js';
+import { SqliteApprovalQueueDAO } from '../../../src/dao/sqlite/approval-queue.js';
 
 const sampleLogEntry = () => ({
   method: 'GET',

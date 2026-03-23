@@ -1,6 +1,6 @@
 import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { ProxyManager } from './proxy-manager.js';
+import { ProxyManager } from '../src/proxy-manager.js';
 
 let manager;
 

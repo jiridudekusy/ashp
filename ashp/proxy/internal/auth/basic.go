@@ -1,3 +1,11 @@
+// Package auth provides HTTP Basic Authentication for proxy agents.
+//
+// Each agent is identified by a name and authenticated against a bcrypt-hashed
+// token. To avoid the cost of bcrypt comparison on every request, successful
+// and failed authentication results are cached for a configurable TTL using a
+// SHA-256 hash of name:token as the cache key.
+//
+// All methods on [Handler] are safe for concurrent use.
 package auth
 
 import (
@@ -12,17 +20,23 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// Agent represents a registered proxy agent with a name, bcrypt token hash,
+// and an enabled flag. Disabled agents are rejected even if credentials match.
 type Agent struct {
 	Name      string `json:"name"`
 	TokenHash string `json:"token_hash"`
 	Enabled   bool   `json:"enabled"`
 }
 
+// cacheEntry stores a bcrypt comparison result with an expiry timestamp.
 type cacheEntry struct {
 	ok      bool
 	expires time.Time
 }
 
+// Handler authenticates incoming proxy requests using HTTP Basic
+// Authentication (Proxy-Authorization header). It maintains an in-memory
+// agent registry and a time-bounded bcrypt result cache.
 type Handler struct {
 	mu     sync.RWMutex
 	agents map[string]Agent // name -> Agent
@@ -30,6 +44,8 @@ type Handler struct {
 	ttl    time.Duration
 }
 
+// NewHandler returns a Handler with an empty agent set and a 60-second
+// bcrypt cache TTL.
 func NewHandler() *Handler {
 	return &Handler{
 		agents: make(map[string]Agent),
@@ -38,6 +54,9 @@ func NewHandler() *Handler {
 	}
 }
 
+// Reload atomically replaces the agent registry with the given slice and
+// clears the bcrypt cache. This is called when an agents.reload IPC message
+// arrives.
 func (h *Handler) Reload(agents []Agent) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -48,6 +67,17 @@ func (h *Handler) Reload(agents []Agent) {
 	h.cache = make(map[string]cacheEntry) // clear cache on reload
 }
 
+// Authenticate extracts Basic credentials from the Proxy-Authorization header,
+// looks up the agent by name, and verifies the token against the stored bcrypt
+// hash (with caching). Returns the agent name and true on success, or empty
+// string and false on failure.
+//
+// The authentication flow is:
+//  1. Parse the Proxy-Authorization header (must be "Basic <base64>").
+//  2. Decode to "name:token".
+//  3. Look up the agent by name; reject if missing or disabled.
+//  4. Check the SHA-256(name:token) cache; return cached result if not expired.
+//  5. Fall back to bcrypt.CompareHashAndPassword, then cache the result.
 func (h *Handler) Authenticate(req *http.Request) (string, bool) {
 	header := req.Header.Get("Proxy-Authorization")
 	if header == "" {
@@ -75,7 +105,7 @@ func (h *Handler) Authenticate(req *http.Request) (string, bool) {
 		return "", false
 	}
 
-	// Check cache
+	// Check cache to avoid expensive bcrypt on every request.
 	cacheKey := cacheKeyFor(name, token)
 	h.mu.RLock()
 	entry, cached := h.cache[cacheKey]
@@ -88,7 +118,7 @@ func (h *Handler) Authenticate(req *http.Request) (string, bool) {
 		return "", false
 	}
 
-	// Bcrypt compare
+	// Bcrypt compare (expensive; ~100ms per call).
 	err = bcrypt.CompareHashAndPassword([]byte(agent.TokenHash), []byte(token))
 	ok := err == nil
 
@@ -102,6 +132,8 @@ func (h *Handler) Authenticate(req *http.Request) (string, bool) {
 	return "", false
 }
 
+// cacheKeyFor returns a hex-encoded SHA-256 hash of "name:token", used as a
+// constant-size cache key that avoids storing plaintext credentials in memory.
 func cacheKeyFor(name, token string) string {
 	sum := sha256.Sum256([]byte(name + ":" + token))
 	return hex.EncodeToString(sum[:])

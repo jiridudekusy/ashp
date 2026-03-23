@@ -1,3 +1,10 @@
+/**
+ * @file Root application component for ASHP management GUI.
+ *
+ * Data flow: SSE stream → EventBridge → subscriber callbacks → page components.
+ * Auth state (Base64 credentials) lives in sessionStorage and is passed down
+ * to both the API client and the SSE connection.
+ */
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { createClient } from './api/client';
@@ -10,6 +17,17 @@ import Logs from './pages/Logs';
 import Approvals from './pages/Approvals';
 import Agents from './pages/Agents';
 
+/**
+ * Bridges the SSE event stream to child components via a pub/sub pattern.
+ * Uses render-prop pattern: children receives an {subscribe, unsubscribe} object.
+ * Subscribers are called with (eventType, eventData) for every SSE message.
+ *
+ * @param {Object} props
+ * @param {string} props.credentials - Base64-encoded Basic auth credentials
+ * @param {Function} props.onConnect - Called when SSE connection is established
+ * @param {Function} props.onDisconnect - Called when SSE connection is lost
+ * @param {Function} props.children - Render prop receiving the events pub/sub object
+ */
 function EventBridge({ credentials, onConnect, onDisconnect, children }) {
   const subscribers = useMemo(() => new Set(), []);
   const onEvent = useCallback((type, data) => {
@@ -80,7 +98,12 @@ export default function App() {
   );
 }
 
-// Small component to subscribe to approval events and update pending count
+/**
+ * Invisible component that subscribes to SSE approval events and maintains
+ * the global pending approval count. Increments on 'approval.needed',
+ * decrements (min 0) on 'approval.resolved'. Rendered outside Routes so
+ * the count stays accurate regardless of which page is active.
+ */
 function ApprovalTracker({ events, setPendingCount }) {
   useEffect(() => {
     const handler = (type) => {

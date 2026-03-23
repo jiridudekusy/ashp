@@ -1,3 +1,11 @@
+/**
+ * @file Approval queue card with countdown progress bar.
+ *
+ * Displays a held request's method, URL, and age. The progress bar fills
+ * from left to right as the hold_timeout approaches — calculated as
+ * elapsed/timeout ratio. Parent component drives re-renders via a 1-second
+ * interval tick to animate the bar and update relative timestamps.
+ */
 import styles from './ApprovalCard.module.css';
 
 function formatRelativeTime(timestamp) {

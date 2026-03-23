@@ -4,8 +4,8 @@ import net from 'node:net';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { IPCServer } from './server.js';
-import { frame, parseFrames } from './protocol.js';
+import { IPCServer } from '../../src/ipc/server.js';
+import { frame, parseFrames } from '../../src/ipc/protocol.js';
 
 let tempDir;
 let socketPath;

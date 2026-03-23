@@ -1,5 +1,25 @@
+/**
+ * @file React hook for consuming Server-Sent Events from the ASHP management API.
+ *
+ * Uses fetch() with a streaming reader instead of the native EventSource API
+ * because EventSource doesn't support custom headers (needed for Basic auth).
+ * Implements automatic reconnection with a 3-second backoff on disconnect or error.
+ *
+ * SSE frame parsing: expects "event: <type>\ndata: <json>\n\n" format.
+ * Incomplete lines are buffered across chunks for correct frame reassembly.
+ */
 import { useEffect, useRef, useCallback } from 'react';
 
+/**
+ * Connects to an SSE endpoint with Basic auth and auto-reconnection.
+ *
+ * @param {string} url - SSE endpoint path (e.g., '/api/events')
+ * @param {Object} options
+ * @param {Function} options.onEvent - Called with (eventType, parsedData) for each SSE message
+ * @param {string} options.credentials - Base64-encoded Basic auth credentials
+ * @param {Function} [options.onConnect] - Called when the stream is successfully opened
+ * @param {Function} [options.onDisconnect] - Called when the stream is lost (triggers 3s reconnect)
+ */
 export function useSSE(url, { onEvent, credentials, onConnect, onDisconnect } = {}) {
   const abortRef = useRef(null);
   const reconnectTimer = useRef(null);

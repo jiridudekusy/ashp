@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { deriveRecordKey, encryptRecord, decryptRecord } from './index.js';
+import { deriveRecordKey, encryptRecord, decryptRecord } from '../../src/crypto/index.js';
 
 describe('crypto', () => {
   const masterKey = Buffer.alloc(32, 0xab);

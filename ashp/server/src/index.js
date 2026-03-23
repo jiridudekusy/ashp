@@ -1,3 +1,26 @@
+/**
+ * @module index
+ * @description ASHP server entry point. Orchestrates startup of all subsystems:
+ *
+ * 1. Loads and validates configuration (config file + CLI flags + env vars)
+ * 2. Initializes the SQLite database and DAO layer
+ * 3. Starts the Unix-socket IPC server for communication with the Go proxy
+ * 4. Spawns the Go MITM proxy as a managed child process
+ * 5. Mounts the Express management API (rules, logs, approvals, agents, SSE events)
+ * 6. Registers SIGHUP handler for live config reload
+ *
+ * Architecture overview:
+ * - The Go proxy intercepts HTTP(S) traffic and evaluates rules locally.
+ * - When a request needs human approval ("queue" mode), the proxy sends an
+ *   `approval.needed` IPC message and holds the TCP connection open.
+ * - The Node server stores the pending approval (with `ipc_msg_id` for correlation)
+ *   and notifies the GUI via SSE / webhooks.
+ * - When a human resolves the approval, Node sends an `approval.resolve` IPC message
+ *   back to the proxy, referencing the original `ipc_msg_id`, so the proxy can
+ *   release or reject the held connection.
+ * - Request/response bodies are stored as encrypted blobs on disk by the Go proxy;
+ *   the DB stores a `body_ref` in the format `path:offset:length` for retrieval.
+ */
 import express from 'express';
 import { loadConfig } from './config.js';
 import { createConnection } from './dao/sqlite/connection.js';
@@ -21,6 +44,14 @@ import { mkdirSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { unlinkSync, existsSync } from 'node:fs';
 
+/**
+ * Bootstraps and starts the ASHP server with all subsystems.
+ *
+ * @param {Object} [flags={}] - CLI flags (e.g. `{ config: 'path/to/config.json', 'proxy-listen': '0.0.0.0:8080' }`)
+ * @returns {Promise<{app: import('express').Application, server: import('http').Server, ipc: IPCServer, proxyManager: ProxyManager, db: import('better-sqlite3').Database, close: () => void}>}
+ *   Resolves with handles to all subsystems and a `close()` function for graceful shutdown.
+ * @throws {Error} If config loading, DB initialization, or IPC socket binding fails.
+ */
 export async function startServer(flags = {}) {
   const config = loadConfig(flags);
   const dataDir = dirname(resolve(config.database.path));
@@ -35,7 +66,7 @@ export async function startServer(flags = {}) {
   const approvalQueueDAO = new SqliteApprovalQueueDAO(db);
   const agentsDAO = new SqliteAgentsDAO(db);
 
-  // IPC
+  // IPC — clean up stale socket from previous run
   const socketPath = config.ipc_socket || resolve(dataDir, 'ashp.sock');
   if (existsSync(socketPath)) unlinkSync(socketPath);
 
@@ -43,11 +74,18 @@ export async function startServer(flags = {}) {
   const webhooks = new WebhookDispatcher(config.webhooks || []);
   const logKey = config.encryption?.log_key ? Buffer.from(config.encryption.log_key, 'hex') : null;
 
+  /*
+   * IPC message flow between Node and the Go proxy:
+   * - On proxy connect: push full rules + agents list so the proxy has current state.
+   * - On 'request.logged' / 'request.blocked': persist to request_log, emit SSE event.
+   * - On 'approval.needed': persist log + enqueue approval with `ipc_msg_id` for later
+   *   correlation when the human resolves it (see api/approvals.js).
+   * - After any message: update per-rule hit counts and per-agent request counts.
+   */
   const ipc = new IPCServer(socketPath, {
     onConnect: async () => {
       try {
         const rules = await rulesDAO.list();
-        // rules sent to proxy on connect
         ipc.send({ type: 'rules.reload', data: rules });
         const agents = agentsDAO.listForProxy();
         ipc.send({ type: 'agents.reload', data: agents });
@@ -64,6 +102,8 @@ export async function startServer(flags = {}) {
         await requestLogDAO.insert(msg.data);
         events.emit('request.blocked', msg.data);
       } else if (msg.type === 'approval.needed') {
+        // Store ipc_msg_id so the approval resolve can reference it back to the proxy,
+        // allowing the held connection to be released or rejected.
         const logEntry = await requestLogDAO.insert(msg.data);
         await approvalQueueDAO.enqueue({
           request_log_id: logEntry.id,
@@ -83,7 +123,7 @@ export async function startServer(flags = {}) {
   });
   await ipc.start();
 
-  // Proxy manager
+  // Proxy manager — spawns the Go binary with IPC socket, listen addr, and crypto args
   const proxyBinPath = config.proxy?.bin_path || resolve(dataDir, '..', 'proxy', 'ashp-proxy');
   const proxyArgs = [
     '--socket', socketPath,
@@ -103,7 +143,7 @@ export async function startServer(flags = {}) {
     ipc.send({ type: 'agents.reload', data: agents });
   }});
 
-  // Express app
+  // Express app — public routes first, then Basic Auth gate, then protected routes
   const app = express();
   app.use(express.json());
 
@@ -113,7 +153,7 @@ export async function startServer(flags = {}) {
   // Public: CA cert and status
   app.use('/api', statusRoutes(deps));
 
-  // Protected routes
+  // Protected routes (require Basic Auth)
   app.use('/api', basicAuth(config.management.auth));
   app.use('/api/rules', rulesRoutes(deps));
   app.use('/api/logs', logsRoutes(deps));
@@ -127,6 +167,7 @@ export async function startServer(flags = {}) {
     : resolve(dataDir, '..', 'gui', 'dist');
   if (existsSync(guiDistPath)) {
     app.use(express.static(guiDistPath));
+    // SPA fallback: serve index.html for non-API GET requests
     app.use((req, res, next) => {
       if (req.method !== 'GET' || req.path.startsWith('/api')) return next();
       res.sendFile(resolve(guiDistPath, 'index.html'));
@@ -141,7 +182,8 @@ export async function startServer(flags = {}) {
     s.on('error', rej);
   });
 
-  // SIGHUP reloads config
+  // SIGHUP triggers a live reload: re-reads config, refreshes webhooks,
+  // pushes updated rules/agents/default_behavior to the Go proxy via IPC.
   const sighupHandler = async () => {
     try {
       const newConfig = loadConfig(flags);

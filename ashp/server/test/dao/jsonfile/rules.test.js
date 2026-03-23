@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { JsonFileRulesDAO } from './rules.js';
+import { JsonFileRulesDAO } from '../../../src/dao/jsonfile/rules.js';
 
 describe('JsonFileRulesDAO', () => {
   let dir;

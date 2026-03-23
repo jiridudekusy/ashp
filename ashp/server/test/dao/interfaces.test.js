@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { RulesDAO, RequestLogDAO, ApprovalQueueDAO } from './interfaces.js';
+import { RulesDAO, RequestLogDAO, ApprovalQueueDAO } from '../../src/dao/interfaces.js';
 
 describe('RulesDAO', () => {
   const dao = new RulesDAO();

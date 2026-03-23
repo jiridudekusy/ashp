@@ -1,5 +1,18 @@
+/**
+ * @module dao/sqlite/connection
+ * @description SQLite database initialization with WAL mode, foreign keys, and schema migrations.
+ *
+ * The database schema is applied in two phases:
+ * 1. Base DDL (MIGRATIONS constant): creates `rules`, `request_log`, `approval_queue` tables and indexes.
+ * 2. Versioned migrations keyed by `PRAGMA user_version`:
+ *    - v0 -> v1: adds `agents` table; adds `hit_count`, `hit_count_today`, `hit_count_date` to `rules`.
+ *    - v1 -> v2: adds `description` column to `agents`.
+ *
+ * Each versioned migration runs inside a transaction and bumps `user_version` atomically.
+ */
 import Database from 'better-sqlite3';
 
+/** Base DDL applied on every connection (uses CREATE IF NOT EXISTS for idempotency). */
 const MIGRATIONS = `
 CREATE TABLE IF NOT EXISTS rules (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -38,6 +51,16 @@ CREATE INDEX IF NOT EXISTS idx_request_log_decision ON request_log(decision);
 CREATE INDEX IF NOT EXISTS idx_approval_queue_status ON approval_queue(status);
 `;
 
+/**
+ * Opens (or creates) a SQLite database, enables WAL mode and foreign keys,
+ * applies the base schema, and runs any pending versioned migrations.
+ *
+ * @param {string} dbPath - Absolute path to the SQLite database file.
+ * @param {string} encryptionKey - Required encryption key (reserved for future SQLCipher support;
+ *   currently used as a guard to ensure config includes a key).
+ * @returns {import('better-sqlite3').Database} The initialized database connection.
+ * @throws {Error} If `encryptionKey` is not provided.
+ */
 export function createConnection(dbPath, encryptionKey) {
   if (!encryptionKey) {
     throw new Error('Encryption key is required');
@@ -50,6 +73,7 @@ export function createConnection(dbPath, encryptionKey) {
 
   const { user_version } = db.prepare('PRAGMA user_version').get();
 
+  // Migration v0 -> v1: agents table, rule hit counters
   if (user_version < 1) {
     db.transaction(() => {
       db.exec(`
@@ -70,6 +94,7 @@ export function createConnection(dbPath, encryptionKey) {
     })();
   }
 
+  // Migration v1 -> v2: agent description field
   if (user_version < 2) {
     db.transaction(() => {
       db.exec(`ALTER TABLE agents ADD COLUMN description TEXT NOT NULL DEFAULT '';`);

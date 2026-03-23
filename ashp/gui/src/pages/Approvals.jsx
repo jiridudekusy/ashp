@@ -1,3 +1,20 @@
+/**
+ * @file Approval queue page — displays held requests awaiting human decision.
+ *
+ * Split-pane layout: left shows pending approvals with countdown progress bars,
+ * right shows request details with approve/reject/approve+create-rule actions.
+ *
+ * The countdown timer reflects the Go proxy's hold_timeout — once it expires,
+ * the proxy returns 504 to the agent regardless of UI state. A 1-second
+ * setInterval drives the progress bars and relative timestamps.
+ *
+ * "Approve + Create Rule" resolves the approval and opens SmartRuleBuilder
+ * pre-filled with the request's URL pattern, letting the user create a
+ * permanent allow rule so future identical requests pass automatically.
+ *
+ * Recently resolved approvals are kept in local state (last 10) for context,
+ * updated via SSE 'approval.resolved' events.
+ */
 import { useState, useEffect, useCallback } from 'react';
 import { Badge } from '../components/Badge';
 import { DetailPanel } from '../components/DetailPanel';
@@ -6,6 +23,7 @@ import ApprovalCard from '../components/ApprovalCard';
 import { SplitPane } from '../components/SplitPane';
 import styles from './Approvals.module.css';
 
+/** Default countdown duration in seconds (should match server's hold_timeout). */
 const DEFAULT_TIMEOUT = 30;
 
 function formatRelativeTime(timestamp) {
@@ -18,6 +36,10 @@ function formatRelativeTime(timestamp) {
   return `${Math.floor(minutes / 60)}h ago`;
 }
 
+/**
+ * Converts an approval queue item into a pseudo log-entry shape
+ * compatible with DetailPanel, which expects {id, method, url, decision, ...}.
+ */
 function approvalToEntry(approval) {
   if (!approval) return null;
   return {

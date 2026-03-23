@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
-import { basicAuth, errorHandler } from './middleware.js';
+import { basicAuth, errorHandler } from '../../src/api/middleware.js';
 
 function makeApp(auth) {
   const app = express();

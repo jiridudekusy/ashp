@@ -1,0 +1,23 @@
+services:
+  claude:
+    build: .
+    container_name: ashp-claude
+    networks:
+      - ashp-sandbox
+    volumes:
+      - claude_home:/home/dev
+      - ./workspace:/workspace
+    environment:
+      - HTTP_PROXY=http://claude-sandbox:26ff4842262e6d536fa33046241db3a466821fc496e0af7becef4be075bbf470@ashp:8080
+      - HTTPS_PROXY=http://claude-sandbox:26ff4842262e6d536fa33046241db3a466821fc496e0af7becef4be075bbf470@ashp:8080
+      - NO_PROXY=ashp,localhost,127.0.0.1
+      - NODE_EXTRA_CA_CERTS=/home/dev/ashp-ca.crt
+    stdin_open: true
+    tty: true
+
+networks:
+  ashp-sandbox:
+    external: true
+
+volumes:
+  claude_home:

@@ -1,7 +1,22 @@
+/**
+ * @file Agent management page — CRUD for proxy agent credentials.
+ *
+ * Agents authenticate to the ASHP proxy via Proxy-Authorization Basic header.
+ * Tokens are 32-byte random hex strings, hashed with bcrypt server-side.
+ * The plaintext token is only shown once: immediately after creation or rotation.
+ *
+ * Token banners (createdToken, rotatedToken) persist until manually dismissed,
+ * giving the user time to copy the credential. Deleting an agent cascades to
+ * all their request logs and approval queue entries.
+ */
 import { useState, useEffect, useCallback } from 'react';
 import { Modal } from '../components/Modal';
 import styles from './Agents.module.css';
 
+/**
+ * @param {Object} props
+ * @param {Object} props.api - API client from createClient()
+ */
 export default function Agents({ api }) {
   const [agents, setAgents] = useState([]);
   const [editing, setEditing] = useState(null); // null | 'new' | agent object

@@ -1,3 +1,11 @@
+// Package ca manages the root Certificate Authority used by the MITM proxy
+// to dynamically sign TLS certificates for intercepted hosts.
+//
+// On first run, [GenerateCA] creates a self-signed ECDSA P-256 root CA and
+// writes the certificate and passphrase-encrypted private key to disk. On
+// subsequent runs, [LoadCA] reads and decrypts them. During proxying,
+// [SignHost] issues short-lived (24h) leaf certificates signed by the root CA
+// for each target hostname.
 package ca
 
 import (
@@ -13,6 +21,14 @@ import (
 	"time"
 )
 
+// GenerateCA creates a new self-signed ECDSA P-256 root CA certificate valid
+// for 10 years. The certificate is written to certPath as PEM and the private
+// key is written to keyPath encrypted with AES-256 using the given passphrase.
+//
+// The certificate has KeyUsageCertSign and KeyUsageCRLSign set, making it
+// suitable only for signing subordinate certificates (not TLS serving).
+//
+// Returns the parsed *x509.Certificate on success.
 func GenerateCA(certPath, keyPath string, passphrase []byte) (*x509.Certificate, error) {
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
@@ -56,6 +72,12 @@ func GenerateCA(certPath, keyPath string, passphrase []byte) (*x509.Certificate,
 	return cert, nil
 }
 
+// LoadCA reads a PEM-encoded CA certificate and its AES-256-encrypted private
+// key from disk, decrypts the key with the given passphrase, and returns a
+// [tls.Certificate] ready for use with [SignHost].
+//
+// The returned certificate's Leaf field is populated so callers can access the
+// parsed *x509.Certificate without an additional parse step.
 func LoadCA(certPath, keyPath string, passphrase []byte) (tls.Certificate, error) {
 	certPEM, err := os.ReadFile(certPath)
 	if err != nil {
@@ -67,6 +89,7 @@ func LoadCA(certPath, keyPath string, passphrase []byte) (tls.Certificate, error
 		return tls.Certificate{}, err
 	}
 
+	// Decrypt the PEM-encrypted private key using the passphrase.
 	block, _ := pem.Decode(keyPEM)
 	decrypted, err := x509.DecryptPEMBlock(block, passphrase) //nolint:staticcheck
 	if err != nil {
@@ -82,6 +105,13 @@ func LoadCA(certPath, keyPath string, passphrase []byte) (tls.Certificate, error
 	return tlsCert, nil
 }
 
+// SignHost generates a short-lived (24-hour) ECDSA P-256 leaf certificate for
+// the given hostname, signed by the provided CA certificate and key. The leaf
+// certificate includes the hostname in both Subject.CommonName and DNSNames,
+// and has ExtKeyUsageServerAuth set.
+//
+// This is called on every CONNECT request to produce a per-host certificate
+// that the MITM proxy presents to the downstream client.
 func SignHost(caCert *x509.Certificate, caKey interface{}, hostname string) (tls.Certificate, error) {
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {

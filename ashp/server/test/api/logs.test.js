@@ -2,8 +2,8 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import express from 'express';
-import logsRoutes from './logs.js';
-import { errorHandler } from './middleware.js';
+import logsRoutes from '../../src/api/logs.js';
+import { errorHandler } from '../../src/api/middleware.js';
 
 let mockRequestLogDAO, mockCrypto, mockConfig;
 let queriedFilters;

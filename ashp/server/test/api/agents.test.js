@@ -1,8 +1,8 @@
 import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
-import { errorHandler } from './middleware.js';
-import agentsRoutes from './agents.js';
+import { errorHandler } from '../../src/api/middleware.js';
+import agentsRoutes from '../../src/api/agents.js';
 
 // Mock DAO
 function mockAgentsDAO() {

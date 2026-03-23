@@ -5,8 +5,8 @@ import express from 'express';
 import { writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import statusRoutes from './status.js';
-import { errorHandler } from './middleware.js';
+import statusRoutes from '../../src/api/status.js';
+import { errorHandler } from '../../src/api/middleware.js';
 
 function listen(app) {
   return new Promise((resolve) => {

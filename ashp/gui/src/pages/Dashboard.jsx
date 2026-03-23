@@ -1,8 +1,14 @@
+/**
+ * @file Dashboard page — shows proxy status cards, pending approval count,
+ * and a live activity feed. SSE events are prepended to the feed in real-time.
+ * Clicking a feed row navigates to the Logs page with that entry selected.
+ */
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Badge } from '../components/Badge.jsx';
 import styles from './Dashboard.module.css';
 
+/** Formats a timestamp as a human-readable relative time string (e.g., "5m ago"). */
 function timeAgo(timestamp) {
   if (!timestamp) return 'now';
   const diff = Date.now() - new Date(timestamp).getTime();
@@ -23,6 +29,10 @@ function formatUptime(ms) {
   return rem > 0 ? `${hours}h ${rem}m` : `${hours}h`;
 }
 
+/**
+ * Resolves the decision string for a feed entry. DB-loaded entries have
+ * a `decision` field; SSE events carry `_event` instead and need mapping.
+ */
 function getDecision(r) {
   if (r.decision) return r.decision;
   if (r._event === 'request.allowed') return 'allowed';

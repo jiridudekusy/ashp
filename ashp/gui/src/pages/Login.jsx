@@ -1,6 +1,18 @@
+/**
+ * @file Login page — authenticates against the management API.
+ *
+ * Validates credentials by hitting a protected endpoint (/api/rules, not
+ * /api/status which is public). On success, stores the Base64-encoded
+ * "user:password" string in sessionStorage and calls onLogin to trigger
+ * the app to render the authenticated routes.
+ */
 import { useState } from 'react';
 import styles from './Login.module.css';
 
+/**
+ * @param {Object} props
+ * @param {Function} props.onLogin - Called with Base64 credentials on successful auth
+ */
 export default function Login({ onLogin }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');

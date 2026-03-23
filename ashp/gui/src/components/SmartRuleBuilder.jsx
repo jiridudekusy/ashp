@@ -1,7 +1,28 @@
+/**
+ * @file Smart rule builder — generates URL pattern suggestions from a request URL.
+ *
+ * Given a URL like "api.example.com/v1/users/123", generates patterns at
+ * increasing scope: exact match, path prefix, API prefix, domain wildcard.
+ * The user selects a pattern scope, method filter, and action, then creates
+ * a rule with one click. Opened from the Logs page or Approvals page.
+ */
 import { useState, useEffect } from 'react';
 import { Modal } from './Modal.jsx';
 import styles from './SmartRuleBuilder.module.css';
 
+/**
+ * Generates URL pattern suggestions at increasing specificity levels.
+ * Strips the protocol, then creates patterns from exact → domain wildcard.
+ *
+ * Example for "api.example.com/v1/users/123":
+ *   - exact:  "api.example.com/v1/users/123"
+ *   - path:   "api.example.com/v1/users/*"
+ *   - api:    "api.example.com/v1/*"
+ *   - domain: "api.example.com/*"
+ *
+ * @param {string} url - The full request URL
+ * @returns {Array<{pattern: string, label: string}>} Pattern options
+ */
 export function generatePatterns(url) {
   if (!url) return [];
   const clean = url.replace(/^https?:\/\//, '');

@@ -1,0 +1,21 @@
+services:
+  ashp:
+    image: jiridudekusy/ashp:latest
+    networks:
+      - default
+      - ashp-sandbox
+    ports:
+      - "8080:8080"
+      - "3000:3000"
+    volumes:
+      - ./data:/data
+      - ./ashp.json:/etc/ashp/ashp.json:ro
+    environment:
+      - ASHP_DB_KEY=dev-db-key-change-in-production
+      - ASHP_LOG_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      - ASHP_CA_KEY=dev-ca-key-change-in-production
+
+networks:
+  ashp-sandbox:
+    name: ashp-sandbox
+    internal: true

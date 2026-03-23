@@ -29,7 +29,7 @@ test-proxy:
 	cd proxy && go test ./...
 
 test-server:
-	cd server && node --test 'src/**/*.test.js'
+	cd server && node --test 'test/**/*.test.js'
 
 test-gui:
 	cd gui && npx vitest run

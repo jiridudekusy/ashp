@@ -1,10 +1,26 @@
+/**
+ * @file Modal form for creating/editing proxy rules.
+ *
+ * Fields: name, url_pattern (regex), methods (comma-separated), action
+ * (allow/deny/hold), priority, body logging config, default_behavior override,
+ * and enabled toggle. Resets to EMPTY defaults on open for new rules,
+ * or populates from the existing rule object for edits.
+ */
 import { useState, useEffect } from 'react';
 import { Modal } from './Modal.jsx';
 import styles from './RuleForm.module.css';
 
+/** Default values for a new rule form. */
 const EMPTY = { name: '', url_pattern: '', methods: [], action: 'allow', priority: 0, enabled: true,
   log_request_body: 'full', log_response_body: 'full', default_behavior: '' };
 
+/**
+ * @param {Object} props
+ * @param {boolean} props.open - Whether the modal is visible
+ * @param {Object|null} props.rule - Existing rule to edit, or null for create
+ * @param {Function} props.onSave - Called with the form data object
+ * @param {Function} props.onCancel - Called when the modal is dismissed
+ */
 export default function RuleForm({ open, rule, onSave, onCancel }) {
   const [form, setForm] = useState(rule || EMPTY);
   const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }));

@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { frame, parseFrames, createResponse } from './protocol.js';
+import { frame, parseFrames, createResponse } from '../../src/ipc/protocol.js';
 
 describe('IPC protocol', () => {
   it('frame serializes JSON with newline delimiter', () => {

@@ -2,8 +2,8 @@ import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import express from 'express';
-import rulesRoutes from './rules.js';
-import { errorHandler } from './middleware.js';
+import rulesRoutes from '../../src/api/rules.js';
+import { errorHandler } from '../../src/api/middleware.js';
 
 let mockRulesDAO, mockConfig, mockIpc, mockEvents;
 

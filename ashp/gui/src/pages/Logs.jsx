@@ -1,3 +1,16 @@
+/**
+ * @file Request log browser with split-pane layout.
+ *
+ * Left pane: filterable log list (decision, method, URL, agent_id) with pagination.
+ * Right pane: DetailPanel showing full request/response details with decrypted bodies.
+ *
+ * Supports deep linking via ?id= query param (e.g., from Dashboard feed clicks).
+ * SSE events trigger a "new entries available" banner instead of auto-refreshing,
+ * to avoid disrupting the user's current scroll position or selection.
+ *
+ * The SmartRuleBuilder modal can be opened from a log entry to create a rule
+ * matching that request's URL pattern.
+ */
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Badge } from '../components/Badge';

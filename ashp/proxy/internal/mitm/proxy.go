@@ -1,3 +1,26 @@
+// Package mitm implements the ASHP man-in-the-middle HTTP/HTTPS proxy. It
+// intercepts both plaintext HTTP and TLS-tunneled HTTPS requests, applies
+// rule-based access control, and logs request/response metadata (and
+// optionally bodies) to the control plane via IPC.
+//
+// # Request lifecycle
+//
+//  1. CONNECT handler: authenticates the agent via Proxy-Authorization,
+//     issues a per-host TLS certificate signed by the root CA, and
+//     establishes a MITM TLS session with the client.
+//  2. Request handler: evaluates the request URL and method against the
+//     loaded rules. Depending on the matched rule action (allow/deny) or the
+//     default behavior (deny/hold/queue), the request is forwarded, blocked,
+//     or held pending approval.
+//  3. Response handler: for allowed requests, captures the response body
+//     (per rule policy) and sends a request.logged IPC message.
+//
+// # Default behavior modes
+//
+//   - deny:  reject unmatched requests with 403.
+//   - hold:  block the goroutine and send an approval.needed IPC message;
+//     wait for approval.resolve or timeout, then forward or reject.
+//   - queue: reject but log for later rule creation.
 package mitm
 
 import (
@@ -19,17 +42,21 @@ import (
 	"github.com/jdk/ashp/proxy/internal/rules"
 )
 
+// Config holds all dependencies and settings needed to construct a [Proxy].
 type Config struct {
-	CA              tls.Certificate
-	Evaluator       *rules.Evaluator
-	Auth            *auth.Handler
-	LogDir          string
-	LogKey          []byte
-	IPC             *ipc.Client
-	DefaultBehavior string
-	HoldRequest     func(msg ipc.Message) (approved bool)
+	CA              tls.Certificate                    // Root CA cert+key for signing host certificates.
+	Evaluator       *rules.Evaluator                   // Rule matching engine.
+	Auth            *auth.Handler                      // Agent authentication handler.
+	LogDir          string                             // Directory for encrypted log files.
+	LogKey          []byte                             // AES-256 master key for log encryption (nil to disable).
+	IPC             *ipc.Client                        // IPC client for control-plane communication.
+	DefaultBehavior string                             // Default action for unmatched requests: "deny", "hold", or "queue".
+	HoldRequest     func(msg ipc.Message) (approved bool) // Blocking callback for hold mode; returns true if approved.
 }
 
+// Proxy wraps a goproxy.ProxyHttpServer with ASHP authentication, rule
+// evaluation, body logging, and IPC reporting. It is created with [New] and
+// started with [Start].
 type Proxy struct {
 	gp              *goproxy.ProxyHttpServer
 	evaluator       *rules.Evaluator
@@ -41,6 +68,14 @@ type Proxy struct {
 	holdRequest     func(msg ipc.Message) (approved bool)
 }
 
+// New constructs a fully configured Proxy. It wires up three goproxy handlers:
+//
+//   - CONNECT handler: authenticates the agent and sets up MITM TLS.
+//   - Request handler: evaluates rules and enforces allow/deny/hold/queue.
+//   - Response handler: captures response bodies and sends IPC logs for
+//     allowed requests.
+//
+// The returned Proxy is not yet listening; call [Proxy.Start] to bind.
 func New(cfg Config) *Proxy {
 	gp := goproxy.NewProxyHttpServer()
 	lw, _ := logger.NewWriter(cfg.LogDir, cfg.LogKey)
@@ -52,7 +87,9 @@ func New(cfg Config) *Proxy {
 		holdRequest:     cfg.HoldRequest,
 	}
 
-	// 407 response for unauthenticated CONNECT requests
+	// connectReject407 is a goproxy ConnectAction that hijacks the CONNECT
+	// tunnel to return a 407 Proxy Authentication Required response,
+	// prompting the client to resend with Basic credentials.
 	connectReject407 := &goproxy.ConnectAction{
 		Action: goproxy.ConnectHijack,
 		Hijack: func(req *http.Request, client net.Conn, ctx *goproxy.ProxyCtx) {
@@ -65,15 +102,17 @@ func New(cfg Config) *Proxy {
 		},
 	}
 
-	// Set up MITM for CONNECT — authenticate at CONNECT time and store agentID
+	// CONNECT handler: authenticate at tunnel establishment time, then set
+	// up MITM TLS with a dynamically-signed certificate for the target host.
+	// The authenticated agent ID is stored in ctx.UserData so the downstream
+	// request handler can retrieve it without re-authenticating.
 	gp.OnRequest().HandleConnect(goproxy.FuncHttpsHandler(
 		func(host string, ctx *goproxy.ProxyCtx) (*goproxy.ConnectAction, string) {
-			// Authenticate on CONNECT request (has Proxy-Authorization)
 			agentID, ok := p.auth.Authenticate(ctx.Req)
 			if !ok {
 				return connectReject407, host
 			}
-			ctx.UserData = agentID // carry agentID through to MITM'd requests
+			ctx.UserData = agentID
 			return &goproxy.ConnectAction{
 				Action: goproxy.ConnectMitm,
 				TLSConfig: func(host string, ctx *goproxy.ProxyCtx) (*tls.Config, error) {
@@ -88,14 +127,16 @@ func New(cfg Config) *Proxy {
 		},
 	))
 
-	// Request handler
+	// Request handler: runs for every HTTP request (both plaintext and
+	// MITM'd HTTPS). Determines the agent identity, reconstructs the full
+	// URL, matches rules, and enforces the configured action/behavior.
 	gp.OnRequest().DoFunc(func(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Request, *http.Response) {
-		// For MITM'd HTTPS requests, agentID was set during CONNECT
+		// For MITM'd HTTPS requests, agentID was set during CONNECT.
 		var agentID string
 		if id, ok := ctx.UserData.(string); ok {
 			agentID = id
 		} else {
-			// Plain HTTP request — authenticate from header
+			// Plain HTTP request -- authenticate from header.
 			var authed bool
 			agentID, authed = p.auth.Authenticate(req)
 			if !authed {
@@ -104,22 +145,22 @@ func New(cfg Config) *Proxy {
 		}
 		req.Header.Del("Proxy-Authorization")
 
-		// Build the full URL for rule matching
-		// goproxy sets req.URL with full scheme+host for CONNECT'd requests
+		// Reconstruct the canonical full URL for rule matching.
+		// goproxy sets req.URL with full scheme+host for CONNECT'd requests,
+		// but for plain HTTP the URL may be relative (path-only).
 		fullURL := req.URL.String()
-		// If URL is relative (path-only), reconstruct from Host header
 		if req.URL.Scheme == "" {
 			scheme := "https"
 			if req.TLS == nil {
 				scheme = "http"
 			}
 			host := req.Host
-			// Strip default ports so rules can match without specifying ports
+			// Strip default ports so rules can match without port suffixes.
 			host = strings.TrimSuffix(host, ":443")
 			host = strings.TrimSuffix(host, ":80")
 			fullURL = scheme + "://" + host + req.URL.RequestURI()
 		} else {
-			// Strip default ports from absolute URLs too
+			// Strip default ports from absolute URLs too.
 			hostname := req.URL.Hostname()
 			port := req.URL.Port()
 			if (req.URL.Scheme == "https" && port == "443") || (req.URL.Scheme == "http" && port == "80") {
@@ -128,8 +169,8 @@ func New(cfg Config) *Proxy {
 		}
 		rule := p.evaluator.Match(fullURL, req.Method)
 
+		// Explicit deny rule: block immediately and optionally log the body.
 		if rule != nil && rule.Action == "deny" {
-			// Capture request body for denied requests if rule says to log it
 			var reqBodyRef string
 			if rule.LogRequestBody != "" && rule.LogRequestBody != "none" {
 				ref, _ := p.captureBody(req.Body, rule.LogRequestBody)
@@ -145,14 +186,15 @@ func New(cfg Config) *Proxy {
 			return req, goproxy.NewResponse(req, goproxy.ContentTypeText, 403, "Forbidden by proxy rule")
 		}
 
+		// Explicit allow rule: capture request body, stash metadata for the
+		// response handler, and forward the request upstream.
 		behavior := p.defaultBehavior
 		if rule != nil && rule.Action == "allow" {
-			// Capture request body for allowed requests
 			var reqBodyRef string
 			if rule.LogRequestBody != "" && rule.LogRequestBody != "none" {
 				ref, origData := p.captureBody(req.Body, rule.LogRequestBody)
 				reqBodyRef = ref
-				// Restore body for forwarding
+				// Restore body for forwarding (captureBody consumed it).
 				if origData != nil {
 					req.Body = io.NopCloser(bytes.NewReader(origData))
 					req.ContentLength = int64(len(origData))
@@ -169,6 +211,7 @@ func New(cfg Config) *Proxy {
 			behavior = rule.DefaultBehavior
 		}
 
+		// No explicit allow/deny rule matched -- apply default behavior.
 		switch behavior {
 		case "deny":
 			p.sendIPC("request.blocked", map[string]interface{}{
@@ -176,6 +219,7 @@ func New(cfg Config) *Proxy {
 			})
 			return req, goproxy.NewResponse(req, goproxy.ContentTypeText, 403, "Forbidden by default policy")
 		case "hold":
+			// Block this goroutine and ask the control plane for approval.
 			if p.holdRequest != nil {
 				holdData := map[string]interface{}{
 					"agent_id": agentID, "url": fullURL, "method": req.Method,
@@ -212,7 +256,9 @@ func New(cfg Config) *Proxy {
 		}
 	})
 
-	// Response handler — send request.logged for allowed requests
+	// Response handler: runs after the upstream response is received for
+	// allowed requests. Captures the response body per the rule's logging
+	// policy and sends a request.logged IPC message with metadata.
 	gp.OnResponse().DoFunc(func(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Response {
 		if resp == nil {
 			return resp
@@ -227,7 +273,7 @@ func New(cfg Config) *Proxy {
 			reqBodyRef, _ := ud["request_body_ref"].(string)
 			logRespBody, _ := ud["log_response_body"].(string)
 
-			// Capture response body
+			// Capture response body according to the rule's logging policy.
 			var respBodyRef string
 			if logRespBody != "" && logRespBody != "none" && resp.Body != nil {
 				ref, origData := p.captureBody(resp.Body, logRespBody)
@@ -260,6 +306,9 @@ func New(cfg Config) *Proxy {
 	return p
 }
 
+// Start begins serving HTTP on the given address. It returns the net.Listener
+// for the caller to inspect (e.g., to log the bound address). The proxy
+// serves in a background goroutine; call [Proxy.Stop] to shut down.
 func (p *Proxy) Start(addr string) (net.Listener, error) {
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
@@ -270,6 +319,8 @@ func (p *Proxy) Start(addr string) (net.Listener, error) {
 	return ln, nil
 }
 
+// sendIPC marshals the data map to JSON and sends it as an IPC message of the
+// given type. It silently does nothing if the IPC client is nil.
 func (p *Proxy) sendIPC(msgType string, data map[string]interface{}) {
 	if p.ipc == nil {
 		return
@@ -278,9 +329,11 @@ func (p *Proxy) sendIPC(msgType string, data map[string]interface{}) {
 	p.ipc.Send(ipc.Message{Type: msgType, Data: raw})
 }
 
-// suggestPattern generates a regex pattern from a URL (scheme + host + path prefix)
+// suggestPattern generates a regex pattern from a URL by extracting the
+// scheme and host, escaping regex metacharacters, and appending a wildcard
+// path suffix. This is sent in approval.needed messages to help operators
+// create rules quickly.
 func suggestPattern(fullURL string) string {
-	// Extract scheme://host/path and create a pattern
 	re := regexp.MustCompile(`^(https?://[^/]+)(/[^?#]*)?`)
 	m := re.FindStringSubmatch(fullURL)
 	if len(m) < 2 {
@@ -290,8 +343,12 @@ func suggestPattern(fullURL string) string {
 	return "^" + host + "/.*$"
 }
 
-// captureBody reads a body according to the logging policy and writes it to the encrypted log.
-// Returns the ref string or empty string if not logged.
+// captureBody reads a request or response body according to the logging
+// policy and writes it to the encrypted log. The policy can be "full" (log
+// entire body) or "truncate:<max_bytes>" (log up to max_bytes).
+//
+// Returns the log ref string (empty if not logged) and the original body
+// bytes so the caller can reconstruct the body for forwarding.
 func (p *Proxy) captureBody(body io.ReadCloser, policy string) (string, []byte) {
 	if body == nil || p.logWriter == nil || policy == "" || policy == "none" {
 		return "", nil
@@ -315,6 +372,7 @@ func (p *Proxy) captureBody(body io.ReadCloser, policy string) (string, []byte) 
 	return ref, data
 }
 
+// Stop shuts down the proxy listener and closes the encrypted log writer.
 func (p *Proxy) Stop() {
 	if p.ln != nil {
 		p.ln.Close()

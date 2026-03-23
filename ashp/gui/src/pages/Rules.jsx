@@ -1,8 +1,21 @@
+/**
+ * @file Rules management page — lists all proxy rules sorted by priority,
+ * provides inline rule testing, and a modal form for create/edit.
+ *
+ * When rules_source is 'file', the page enters read-only mode:
+ * add/edit/delete buttons are hidden and a banner is shown.
+ * The rule tester sends a URL+method to /api/rules/test and displays
+ * which rule would match and what action would be taken.
+ */
 import { useState, useEffect } from 'react';
 import RuleForm from '../components/RuleForm';
 import { Badge } from '../components/Badge';
 import styles from './Rules.module.css';
 
+/**
+ * @param {Object} props
+ * @param {Object} props.api - API client from createClient()
+ */
 export default function Rules({ api }) {
   const [rules, setRules] = useState([]);
   const [editing, setEditing] = useState(null);

@@ -2,7 +2,7 @@ import { describe, it, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import { createHmac } from 'node:crypto';
-import { WebhookDispatcher } from './dispatcher.js';
+import { WebhookDispatcher } from '../../src/webhooks/dispatcher.js';
 
 function createTarget(handler) {
   return new Promise((resolve) => {

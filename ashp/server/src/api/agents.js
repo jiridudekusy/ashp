@@ -1,8 +1,34 @@
+/**
+ * @module api/agents
+ * @description Agent (API client) management routes. After any mutation, the agent
+ * list is pushed to the Go proxy via IPC (`agents.reload`) so it can perform
+ * Proxy-Authorization checks with current credentials.
+ *
+ * Routes:
+ * - `GET /api/agents` — list all agents
+ * - `GET /api/agents/:id` — get a single agent
+ * - `POST /api/agents` — create an agent (returns the one-time plaintext token)
+ * - `PUT /api/agents/:id` — update agent fields (name, description, enabled)
+ * - `DELETE /api/agents/:id` — delete an agent and its related data
+ * - `POST /api/agents/:id/rotate-token` — generate a new token (returns the one-time plaintext token)
+ */
 import { Router } from 'express';
 
+/**
+ * Creates the agents management router.
+ *
+ * @param {Object} deps
+ * @param {import('../dao/interfaces.js').AgentsDAO} deps.agentsDAO
+ * @param {import('../ipc/server.js').IPCServer} deps.ipc
+ * @returns {import('express').Router}
+ */
 export default function agentsRoutes({ agentsDAO, ipc }) {
   const r = Router();
 
+  /**
+   * Pushes the full agent credential list to the Go proxy via IPC.
+   * @returns {Promise<void>}
+   */
   async function sendAgentsReload() {
     const agents = agentsDAO.listForProxy();
     ipc.send({ type: 'agents.reload', data: agents });

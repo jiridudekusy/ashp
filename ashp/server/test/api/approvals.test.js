@@ -2,8 +2,8 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import express from 'express';
-import approvalsRoutes from './approvals.js';
-import { errorHandler } from './middleware.js';
+import approvalsRoutes from '../../src/api/approvals.js';
+import { errorHandler } from '../../src/api/middleware.js';
 
 let mockApprovalQueueDAO, mockRulesDAO, mockConfig, mockIpc, mockEvents;
 

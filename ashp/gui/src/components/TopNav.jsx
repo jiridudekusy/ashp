@@ -1,9 +1,23 @@
+/**
+ * @file Top navigation bar with route tabs, proxy status indicator,
+ * pending approval badge, theme toggle, and logout button.
+ *
+ * The proxy status dot (green/red) reflects the last known proxy connection
+ * state from /api/status. The pending approval badge on the Approvals tab
+ * is driven by ApprovalTracker in App.jsx via SSE events.
+ */
 import { NavLink } from 'react-router-dom';
 import { useTheme } from '../theme/useTheme.js';
 import styles from './TopNav.module.css';
 
 const THEME_ICONS = { light: '\u2600', dark: '\uD83C\uDF19', system: '\uD83D\uDCBB' };
 
+/**
+ * @param {Object} props
+ * @param {number} props.pendingCount - Number of pending approvals (shown as badge)
+ * @param {boolean} props.proxyConnected - Whether the Go proxy is connected
+ * @param {Function} props.onLogout - Called when logout is clicked
+ */
 export function TopNav({ pendingCount = 0, proxyConnected = false, onLogout }) {
   const { theme, cycleTheme } = useTheme();
 

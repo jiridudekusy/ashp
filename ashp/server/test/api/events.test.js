@@ -2,7 +2,7 @@ import { describe, it, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import express from 'express';
-import eventsRoute, { EventBus } from './events.js';
+import eventsRoute, { EventBus } from '../../src/api/events.js';
 
 function listen(app) {
   return new Promise((resolve) => {

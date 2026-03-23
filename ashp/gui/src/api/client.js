@@ -1,6 +1,31 @@
+/**
+ * @file API client factory for the ASHP management REST API.
+ *
+ * Creates an API wrapper with methods for every endpoint. All requests
+ * include Basic auth. Two internal helpers: `request` (JSON responses)
+ * and `requestRaw` (text responses, used for encrypted body streaming).
+ */
+
+/** Thrown on HTTP 401 — triggers logout in the UI. */
 class AuthError extends Error { constructor() { super('Unauthorized'); this.name = 'AuthError'; } }
 
+/**
+ * Creates an authenticated API client instance.
+ *
+ * @param {string} baseURL - API base URL (empty string for same-origin)
+ * @param {string} credentials - Base64-encoded "user:password" for Basic auth
+ * @returns {Object} API client with methods for rules, logs, approvals, agents, and status
+ */
 function createClient(baseURL = '', credentials = '') {
+  /**
+   * Makes an authenticated JSON API request.
+   * @param {string} method - HTTP method
+   * @param {string} path - API path (e.g., '/api/rules')
+   * @param {Object} [body] - Request body (JSON-serialized)
+   * @returns {Promise<Object|null>} Parsed JSON response, or null for 204
+   * @throws {AuthError} On 401 responses
+   * @throws {Error} On non-OK responses (with .status and .body properties)
+   */
   async function request(method, path, body) {
     const opts = {
       method,
@@ -22,6 +47,12 @@ function createClient(baseURL = '', credentials = '') {
     return res.json();
   }
 
+  /**
+   * Makes an authenticated request returning raw text (for decrypted body content).
+   * @param {string} method - HTTP method
+   * @param {string} path - API path
+   * @returns {Promise<string>} Raw response text
+   */
   async function requestRaw(method, path) {
     const res = await fetch(`${baseURL}${path}`, {
       method,

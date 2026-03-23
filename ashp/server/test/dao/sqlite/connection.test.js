@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { createConnection } from './connection.js';
+import { createConnection } from '../../../src/dao/sqlite/connection.js';
 
 describe('SQLite connection factory', () => {
   let dir;

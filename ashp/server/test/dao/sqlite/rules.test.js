@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { createConnection } from './connection.js';
-import { SqliteRulesDAO } from './rules.js';
+import { createConnection } from '../../../src/dao/sqlite/connection.js';
+import { SqliteRulesDAO } from '../../../src/dao/sqlite/rules.js';
 
 describe('SqliteRulesDAO', () => {
   let dir, db, dao;
