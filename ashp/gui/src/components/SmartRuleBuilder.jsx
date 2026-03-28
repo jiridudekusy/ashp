@@ -105,7 +105,6 @@ export function SmartRuleBuilder({ open, onClose, onSubmit, entry }) {
           <select className={styles.select} value={action} onChange={e => setAction(e.target.value)}>
             <option value="allow">allow</option>
             <option value="deny">deny</option>
-            <option value="hold">hold</option>
           </select>
         </div>
       </div>

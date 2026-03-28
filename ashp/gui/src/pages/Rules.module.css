@@ -24,7 +24,8 @@
 .tableHeader { display: grid; grid-template-columns: 1.5fr 2.5fr 80px 70px 60px 50px 70px 80px 90px; padding: 10px 14px; background: var(--color-bg-page); border-bottom: 1px solid var(--color-border); font-weight: 500; color: var(--color-text-secondary); font-size: 11px; }
 .tableRow { display: grid; grid-template-columns: 1.5fr 2.5fr 80px 70px 60px 50px 70px 80px 90px; padding: 10px 14px; border-bottom: 1px solid var(--color-border-light); align-items: center; font-size: 12px; color: var(--color-text); }
 .tableRowDisabled { composes: tableRow; opacity: 0.5; }
-.cellPattern { font-family: monospace; font-size: 12px; }
+.cellPattern { font-family: monospace; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.cellName { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .cellActions { display: flex; gap: 8px; }
 .actionLink { background: none; border: none; font-size: 12px; cursor: pointer; padding: 0; }
 .editLink { composes: actionLink; color: var(--color-accent); }

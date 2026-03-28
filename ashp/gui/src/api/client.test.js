@@ -28,7 +28,7 @@ describe('API client', () => {
     expect(global.fetch).toHaveBeenCalledWith('/api/rules', {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${TOKEN}`,
+        'Authorization': `Basic ${TOKEN}`,
         'Content-Type': 'application/json',
       },
     });
@@ -45,7 +45,7 @@ describe('API client', () => {
     expect(global.fetch).toHaveBeenCalledWith('/api/rules', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${TOKEN}`,
+        'Authorization': `Basic ${TOKEN}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(rule),
@@ -62,7 +62,7 @@ describe('API client', () => {
     expect(global.fetch).toHaveBeenCalledWith('/api/approvals/abc/resolve', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${TOKEN}`,
+        'Authorization': `Basic ${TOKEN}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),
@@ -78,7 +78,7 @@ describe('API client', () => {
     expect(global.fetch).toHaveBeenCalledWith('/api/status', {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${TOKEN}`,
+        'Authorization': `Basic ${TOKEN}`,
         'Content-Type': 'application/json',
       },
     });

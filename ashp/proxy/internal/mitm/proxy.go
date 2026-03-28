@@ -178,6 +178,7 @@ func New(cfg Config) *Proxy {
 			}
 			ipcData := map[string]interface{}{
 				"agent_id": agentID, "url": fullURL, "method": req.Method, "decision": "denied", "reason": "rule_deny",
+				"rule_id": rule.ID,
 			}
 			if reqBodyRef != "" {
 				ipcData["request_body_ref"] = reqBodyRef
@@ -202,8 +203,9 @@ func New(cfg Config) *Proxy {
 			}
 			ctx.UserData = map[string]interface{}{
 				"agent_id": agentID, "url": fullURL,
-				"request_body_ref": reqBodyRef,
+				"request_body_ref":  reqBodyRef,
 				"log_response_body": rule.LogResponseBody,
+				"rule_id":           rule.ID,
 			}
 			return req, nil
 		}
@@ -297,6 +299,9 @@ func New(cfg Config) *Proxy {
 			}
 			if respBodyRef != "" {
 				ipcData["response_body_ref"] = respBodyRef
+			}
+			if ruleID, ok := ud["rule_id"]; ok && ruleID != nil {
+				ipcData["rule_id"] = ruleID
 			}
 			p.sendIPC("request.logged", ipcData)
 		}

@@ -1,9 +1,8 @@
 /**
  * @file Modal form for creating/editing proxy rules.
  *
- * Fields: name, url_pattern (regex), methods (comma-separated), action
- * (allow/deny/hold), priority, body logging config, default_behavior override,
- * and enabled toggle. Resets to EMPTY defaults on open for new rules,
+ * Fields: name, url_pattern (regex), methods (checkbox multi-select), action
+ * (allow/deny), priority, body logging config, and enabled toggle. Resets to EMPTY defaults on open for new rules,
  * or populates from the existing rule object for edits.
  */
 import { useState, useEffect } from 'react';
@@ -41,9 +40,17 @@ export default function RuleForm({ open, rule, onSave, onCancel }) {
           <input className={styles.input} value={form.url_pattern} onChange={e => set('url_pattern', e.target.value)} required />
         </div>
         <div className={styles.fieldGroup}>
-          <label className={styles.label}>Methods (comma-sep)</label>
-          <input className={styles.input} value={form.methods.join(',')}
-            onChange={e => set('methods', e.target.value ? e.target.value.split(',').map(s => s.trim()) : [])} />
+          <label className={styles.label}>Methods</label>
+          <div className={styles.methodsGrid}>
+            {['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'].map(m => (
+              <label key={m} className={styles.methodCheckbox}>
+                <input type="checkbox" checked={form.methods.includes(m)}
+                  onChange={e => set('methods', e.target.checked ? [...form.methods, m] : form.methods.filter(x => x !== m))} />
+                {m}
+              </label>
+            ))}
+          </div>
+          <span className={styles.hint}>{form.methods.length === 0 ? 'All methods (no filter)' : `${form.methods.length} selected`}</span>
         </div>
         <div className={styles.row}>
           <div className={styles.fieldGroup}>
@@ -51,7 +58,6 @@ export default function RuleForm({ open, rule, onSave, onCancel }) {
             <select className={styles.select} value={form.action} onChange={e => set('action', e.target.value)}>
               <option value="allow">Allow</option>
               <option value="deny">Deny</option>
-              <option value="hold">Hold</option>
             </select>
           </div>
           <div className={styles.fieldGroup}>
@@ -75,13 +81,7 @@ export default function RuleForm({ open, rule, onSave, onCancel }) {
             </select>
           </div>
         </div>
-        <div className={styles.fieldGroup}>
-          <label className={styles.label}>Default Behavior Override</label>
-          <select className={styles.select} value={form.default_behavior || ''} onChange={e => set('default_behavior', e.target.value || null)}>
-            <option value="">(inherit global)</option>
-            <option value="deny">Deny</option><option value="hold">Hold</option><option value="queue">Queue</option>
-          </select>
-        </div>
+
         <label className={styles.toggle}>
           <input type="checkbox" checked={form.enabled} onChange={e => set('enabled', e.target.checked)} /> Enabled
         </label>

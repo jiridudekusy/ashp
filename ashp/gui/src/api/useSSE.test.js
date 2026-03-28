@@ -1,72 +1,97 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, cleanup } from '@testing-library/react';
+import { renderHook, cleanup, act } from '@testing-library/react';
 import { useSSE } from './useSSE.js';
 
-describe('useSSE', () => {
-  let mockES;
-  let listeners;
+/**
+ * Creates a mock ReadableStream that yields SSE-formatted chunks.
+ * @param {string[]} chunks - Raw string chunks to emit
+ */
+function mockStream(chunks) {
+  let idx = 0;
+  const encoder = new TextEncoder();
+  return new ReadableStream({
+    pull(controller) {
+      if (idx < chunks.length) {
+        controller.enqueue(encoder.encode(chunks[idx++]));
+      } else {
+        controller.close();
+      }
+    },
+  });
+}
 
+describe('useSSE', () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    listeners = {};
-    mockES = {
-      addEventListener: vi.fn((type, cb) => { listeners[type] = cb; }),
-      close: vi.fn(),
-      onerror: null,
-    };
-    global.EventSource = vi.fn(() => mockES);
   });
 
   afterEach(() => {
     cleanup();
     vi.useRealTimers();
-    delete global.EventSource;
+    vi.restoreAllMocks();
   });
 
-  it('connects to /api/events with auth', () => {
-    renderHook(() => useSSE('/api/events', { token: 'tok123' }));
+  it('connects with Basic auth header', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      body: mockStream([]),
+    });
 
-    expect(global.EventSource).toHaveBeenCalledWith('/api/events?token=tok123');
+    renderHook(() => useSSE('/api/events', { credentials: 'cred123' }));
+
+    // Let the async connect() run
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(fetchSpy).toHaveBeenCalledWith('/api/events', expect.objectContaining({
+      headers: { Authorization: 'Basic cred123' },
+    }));
   });
 
-  it('calls handler on event', () => {
+  it('calls onEvent for parsed SSE frames', async () => {
     const handler = vi.fn();
-    renderHook(() => useSSE('/api/events', { onEvent: handler, token: 'tok' }));
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      body: mockStream([
+        'event: request.allowed\ndata: {"id":"1","action":"allow"}\n\n',
+      ]),
+    });
 
-    const data = { id: '1', action: 'allow' };
-    listeners['request.allowed']({ data: JSON.stringify(data) });
+    renderHook(() => useSSE('/api/events', { onEvent: handler, credentials: 'cred' }));
 
-    expect(handler).toHaveBeenCalledWith('request.allowed', data);
+    await vi.advanceTimersByTimeAsync(10);
+
+    expect(handler).toHaveBeenCalledWith('request.allowed', { id: '1', action: 'allow' });
   });
 
-  it('reconnects on error', () => {
-    renderHook(() => useSSE('/api/events', { token: 'tok' }));
+  it('reconnects on non-ok response', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce({ ok: false, status: 500 })
+      .mockResolvedValueOnce({ ok: true, body: mockStream([]) });
 
-    expect(global.EventSource).toHaveBeenCalledTimes(1);
+    const onDisconnect = vi.fn();
+    renderHook(() => useSSE('/api/events', { credentials: 'cred', onDisconnect }));
 
-    // Simulate error
-    mockES.onerror();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(onDisconnect).toHaveBeenCalled();
 
-    expect(mockES.close).toHaveBeenCalled();
-
-    // Create new mock for reconnection
-    const mockES2 = {
-      addEventListener: vi.fn(),
-      close: vi.fn(),
-      onerror: null,
-    };
-    global.EventSource.mockReturnValue(mockES2);
-
-    vi.advanceTimersByTime(3000);
-
-    expect(global.EventSource).toHaveBeenCalledTimes(2);
+    // Reconnect after 3s
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
 
-  it('cleans up on unmount', () => {
-    const { unmount } = renderHook(() => useSSE('/api/events', { token: 'tok' }));
+  it('aborts fetch on unmount', async () => {
+    const abortSpy = vi.fn();
+    vi.spyOn(globalThis, 'fetch').mockImplementation((url, opts) => {
+      opts.signal.addEventListener('abort', abortSpy);
+      // Never resolve — simulate long-lived connection
+      return new Promise(() => {});
+    });
 
+    const { unmount } = renderHook(() => useSSE('/api/events', { credentials: 'cred' }));
+
+    await vi.advanceTimersByTimeAsync(0);
     unmount();
 
-    expect(mockES.close).toHaveBeenCalled();
+    expect(abortSpy).toHaveBeenCalled();
   });
 });

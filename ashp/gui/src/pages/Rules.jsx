@@ -108,8 +108,8 @@ export default function Rules({ api }) {
           </div>
           {sorted.map(r => (
             <div key={r.id} className={r.enabled ? styles.tableRow : styles.tableRowDisabled}>
-              <span>{r.name}</span>
-              <span className={styles.cellPattern}>{r.url_pattern}</span>
+              <span className={styles.cellName} title={r.name}>{r.name}</span>
+              <span className={styles.cellPattern} title={r.url_pattern}>{r.url_pattern}</span>
               <span>{r.methods.length ? r.methods.join(', ') : '*'}</span>
               <span><Badge variant={r.action}>{r.action}</Badge></span>
               <span>{r.priority}</span>

@@ -94,6 +94,20 @@ Abstract interfaces in `server/src/dao/interfaces.js`, SQLite implementations in
 - **Unused deps:** `@journeyapps/sqlcipher` was removed — only `better-sqlite3` is used
 - **Default credentials:** admin / `change-me-admin-password` (in `ashp.docker.json`)
 
+## Release Workflow
+
+When releasing a new version:
+
+1. **Check last version:** `git tag --sort=-v:refname | head -5`
+2. **Determine version bump:**
+   - Bug fixes only → patch (e.g., v0.1.0 → v0.1.1)
+   - New features or enhancements → minor (e.g., v0.1.0 → v0.2.0)
+3. **Propose version** to the user before proceeding
+4. **Create git tag:** `git tag -a vX.Y.Z -m "vX.Y.Z — summary"`
+5. **Build Docker:** `cd ashp && docker build -t jiridudekusy/ashp:latest -t jiridudekusy/ashp:vX.Y.Z .`
+6. **Push Docker:** `docker push jiridudekusy/ashp:latest && docker push jiridudekusy/ashp:vX.Y.Z`
+7. **Push git tag:** `git push origin vX.Y.Z`
+
 ## Common Pitfalls
 
 - Deleting an agent requires deleting `approval_queue` entries before `request_log` (FK constraint order)
