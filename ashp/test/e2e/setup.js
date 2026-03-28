@@ -11,7 +11,7 @@ export async function createTestStack() {
 
   const config = {
     proxy: { listen: '127.0.0.1:0', auth: { agent1: 'test-token' } },
-    management: { listen: '127.0.0.1:0', bearer_token: 'mgmt-secret' },
+    management: { listen: '127.0.0.1:0', auth: { admin: 'testpass' } },
     rules: { source: 'db' },
     default_behavior: 'deny',
     logging: { request_body: 'full', response_body: 'full', retention_days: 1 },
@@ -31,7 +31,7 @@ export async function createTestStack() {
     for (let i = 0; i < maxAttempts; i++) {
       try {
         const res = await fetch(`${apiBase}/api/status`, {
-          headers: { 'Authorization': 'Bearer mgmt-secret' },
+          headers: { 'Authorization': 'Basic ' + Buffer.from('admin:testpass').toString('base64') },
         });
         if (res.ok) return;
       } catch {}
@@ -44,7 +44,7 @@ export async function createTestStack() {
   async function api(method, path, body) {
     const opts = {
       method,
-      headers: { 'Authorization': 'Bearer mgmt-secret', 'Content-Type': 'application/json' },
+      headers: { 'Authorization': 'Basic ' + Buffer.from('admin:testpass').toString('base64'), 'Content-Type': 'application/json' },
     };
     if (body) opts.body = JSON.stringify(body);
     const res = await fetch(`${apiBase}${path}`, opts);
@@ -107,7 +107,7 @@ export async function createFullStack(options = {}) {
       bin_path: proxyBinPath,
       hold_timeout,
     },
-    management: { listen: '127.0.0.1:0', bearer_token: 'mgmt-secret' },
+    management: { listen: '127.0.0.1:0', auth: { admin: 'testpass' } },
     rules: { source: 'db' },
     default_behavior,
     logging: { request_body: 'full', response_body: 'full', retention_days: 1 },
@@ -127,22 +127,26 @@ export async function createFullStack(options = {}) {
   async function api(method, path, body) {
     const opts = {
       method,
-      headers: { 'Authorization': 'Bearer mgmt-secret', 'Content-Type': 'application/json' },
+      headers: { 'Authorization': 'Basic ' + Buffer.from('admin:testpass').toString('base64'), 'Content-Type': 'application/json' },
     };
     if (body) opts.body = JSON.stringify(body);
     const res = await fetch(`${apiBase}${path}`, opts);
     return { status: res.status, body: res.status !== 204 ? await res.json() : null };
   }
 
-  // 6. Create initial rules
+  // 6. Create agent for proxy auth
+  const { body: agentData } = await api('POST', '/api/agents', { name: 'agent1' });
+  const agentToken = agentData.token; // plaintext token returned at creation
+
+  // 7. Create initial rules
   for (const rule of rules) {
     await api('POST', '/api/rules', rule);
   }
 
-  // 7. Start proxy via ProxyManager
+  // 8. Start proxy via ProxyManager
   stack.proxyManager.start();
 
-  // 8. Wait for proxy to accept connections
+  // 9. Wait for proxy to accept connections
   async function waitForProxy(maxAttempts = 50, interval = 200) {
     for (let i = 0; i < maxAttempts; i++) {
       try {
@@ -172,7 +176,7 @@ export async function createFullStack(options = {}) {
         path: url.href,
         headers: {
           'Host': url.host,
-          'Proxy-Authorization': 'Basic ' + Buffer.from('agent1:test-token').toString('base64'),
+          'Proxy-Authorization': 'Basic ' + Buffer.from(`agent1:${agentToken}`).toString('base64'),
         },
         timeout: timeoutMs,
       }, (res) => {
