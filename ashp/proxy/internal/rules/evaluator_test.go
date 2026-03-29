@@ -25,7 +25,7 @@ func TestEvaluator(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		match := e.Match(tt.url, tt.method)
+		match := e.Match("__all__", tt.url, tt.method)
 		if match == nil {
 			t.Fatalf("no match for %s %s", tt.method, tt.url)
 		}
@@ -44,7 +44,7 @@ func TestEvaluatorNoMatch(t *testing.T) {
 		{ID: 1, URLPattern: `^https://specific\.com/$`, Methods: []string{"GET"},
 			Action: "allow", Priority: 100, Enabled: true},
 	})
-	if m := e.Match("https://other.com/", "GET"); m != nil {
+	if m := e.Match("__all__", "https://other.com/", "GET"); m != nil {
 		t.Fatalf("expected nil, got rule %d", m.ID)
 	}
 }
@@ -52,12 +52,12 @@ func TestEvaluatorNoMatch(t *testing.T) {
 func TestEvaluatorReload(t *testing.T) {
 	e := NewEvaluator()
 	e.Load([]Rule{{ID: 1, URLPattern: `.*`, Methods: nil, Action: "deny", Priority: 0, Enabled: true}})
-	if m := e.Match("https://a.com/", "GET"); m.Action != "deny" {
+	if m := e.Match("__all__", "https://a.com/", "GET"); m.Action != "deny" {
 		t.Fatal("expected deny")
 	}
 
 	e.Load([]Rule{{ID: 2, URLPattern: `.*`, Methods: nil, Action: "allow", Priority: 0, Enabled: true}})
-	if m := e.Match("https://a.com/", "GET"); m.Action != "allow" {
+	if m := e.Match("__all__", "https://a.com/", "GET"); m.Action != "allow" {
 		t.Fatal("expected allow after reload")
 	}
 }

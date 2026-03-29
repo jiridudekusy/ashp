@@ -167,7 +167,7 @@ func New(cfg Config) *Proxy {
 				fullURL = req.URL.Scheme + "://" + hostname + req.URL.RequestURI()
 			}
 		}
-		rule := p.evaluator.Match(fullURL, req.Method)
+		rule := p.evaluator.Match(agentID, fullURL, req.Method)
 
 		// Explicit deny rule: block immediately and optionally log the body.
 		if rule != nil && rule.Action == "deny" {

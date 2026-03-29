@@ -90,10 +90,16 @@ func main() {
 		ipc.WithOnMessage(func(m ipc.Message) {
 			switch m.Type {
 			case "rules.reload":
-				// Replace the evaluator's rule set atomically.
-				var ruleList []rules.Rule
-				json.Unmarshal(m.Data, &ruleList)
-				eval.Load(ruleList)
+				// Try per-agent map format first, fall back to flat list for
+				// backwards compatibility with older control-plane versions.
+				var agentMap map[string][]rules.Rule
+				if err := json.Unmarshal(m.Data, &agentMap); err == nil {
+					eval.LoadMap(agentMap)
+				} else {
+					var ruleList []rules.Rule
+					json.Unmarshal(m.Data, &ruleList)
+					eval.Load(ruleList)
+				}
 			case "agents.reload":
 				// Replace the auth handler's agent set atomically.
 				var agents []auth.Agent
