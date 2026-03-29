@@ -100,6 +100,49 @@ export class ApprovalQueueDAO {
 }
 
 /**
+ * Abstract interface for hierarchical policy management.
+ *
+ * Policies group rules together and can be nested (parent→child). Agents can have
+ * one or more policies assigned to them. `resolveAgentRules` returns the flat,
+ * merged set of enabled rules from all directly and transitively assigned policies.
+ *
+ * @typedef {Object} Policy
+ * @property {number} id
+ * @property {string} name - Unique policy name.
+ * @property {string} description
+ * @property {string} created_at
+ */
+export class PoliciesDAO {
+  /** @returns {Promise<Policy[]>} All policies ordered by id. */
+  list()                          { return notImpl('list'); }
+  /** @param {number} id @returns {Promise<Policy|null>} */
+  get(id)                         { return notImpl('get'); }
+  /** @param {Partial<Policy>} policy @returns {Promise<Policy>} The created policy. */
+  create(policy)                  { return notImpl('create'); }
+  /** @param {number} id @param {Partial<Policy>} changes @returns {Promise<Policy|null>} */
+  update(id, changes)             { return notImpl('update'); }
+  /** @param {number} id @returns {Promise<void>} */
+  delete(id)                      { return notImpl('delete'); }
+  /** @param {number} parentId @param {number} childId @returns {Promise<void>} */
+  addChild(parentId, childId)     { return notImpl('addChild'); }
+  /** @param {number} parentId @param {number} childId @returns {Promise<void>} */
+  removeChild(parentId, childId)  { return notImpl('removeChild'); }
+  /** @returns {Promise<Array<Policy & {children: Policy[]}>>} Root policies with nested children. */
+  getTree()                       { return notImpl('getTree'); }
+  /** @param {number} policyId @param {number} agentId @returns {Promise<void>} */
+  assignToAgent(policyId, agentId)    { return notImpl('assignToAgent'); }
+  /** @param {number} policyId @param {number} agentId @returns {Promise<void>} */
+  unassignFromAgent(policyId, agentId) { return notImpl('unassignFromAgent'); }
+  /** @param {number} agentId @returns {Promise<Policy[]>} Policies directly assigned to the agent. */
+  getAgentPolicies(agentId)       { return notImpl('getAgentPolicies'); }
+  /**
+   * Resolves all enabled rules accessible to an agent via assigned policies (direct + sub-policies).
+   * @param {number} agentId @returns {Promise<import('./interfaces.js').Rule[]>} Rules ordered by priority desc.
+   */
+  resolveAgentRules(agentId)      { return notImpl('resolveAgentRules'); }
+}
+
+/**
  * Abstract interface for agent (API client) credential management.
  *
  * @typedef {Object} Agent

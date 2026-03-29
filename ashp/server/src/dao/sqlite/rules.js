@@ -22,6 +22,7 @@ function deserialize(row) {
     ...row,
     methods: JSON.parse(row.methods),
     enabled: !!row.enabled,
+    policy_id: row.policy_id ?? null,
     hit_count: row.hit_count ?? 0,
     hit_count_today: row.hit_count_today ?? 0,
     hit_count_date: row.hit_count_date ?? null,
@@ -46,9 +47,9 @@ export class SqliteRulesDAO extends RulesDAO {
       list: db.prepare('SELECT * FROM rules ORDER BY priority DESC'),
       get: db.prepare('SELECT * FROM rules WHERE id = ?'),
       insert: db.prepare(`INSERT INTO rules (name,url_pattern,methods,action,priority,
-        agent_id,log_request_body,log_response_body,default_behavior,enabled)
+        agent_id,log_request_body,log_response_body,default_behavior,enabled,policy_id)
         VALUES (@name,@url_pattern,@methods,@action,@priority,
-        @agent_id,@log_request_body,@log_response_body,@default_behavior,@enabled)`),
+        @agent_id,@log_request_body,@log_response_body,@default_behavior,@enabled,@policy_id)`),
       delete: db.prepare('DELETE FROM rules WHERE id = ?'),
       listEnabled: db.prepare('SELECT * FROM rules WHERE enabled=1 ORDER BY priority DESC'),
       incrementHitCount: db.prepare(`
@@ -91,6 +92,7 @@ export class SqliteRulesDAO extends RulesDAO {
       log_response_body: rule.log_response_body ?? 'full',
       default_behavior: rule.default_behavior ?? null,
       enabled: (rule.enabled ?? true) ? 1 : 0,
+      policy_id: rule.policy_id ?? null,
     });
     return this.get(info.lastInsertRowid);
   }
