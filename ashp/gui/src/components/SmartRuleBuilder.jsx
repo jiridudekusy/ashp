@@ -5,6 +5,9 @@
  * increasing scope: exact match, path prefix, API prefix, domain wildcard.
  * The user selects a pattern scope, method filter, and action, then creates
  * a rule with one click. Opened from the Logs page or Approvals page.
+ *
+ * When `policies` prop is provided, shows a policy dropdown so the rule
+ * can be added directly to an existing policy.
  */
 import { useState, useEffect } from 'react';
 import { Modal } from './Modal.jsx';
@@ -45,10 +48,19 @@ export function generatePatterns(url) {
   return patterns;
 }
 
-export function SmartRuleBuilder({ open, onClose, onSubmit, entry }) {
+/**
+ * @param {Object} props
+ * @param {boolean} props.open - Whether the modal is open
+ * @param {Function} props.onClose - Called when modal is dismissed
+ * @param {Function} props.onSubmit - Called with rule data including optional policy_id
+ * @param {Object} [props.entry] - Pre-filled request entry {url, method, decision}
+ * @param {Array} [props.policies] - Available policies to assign the rule to
+ */
+export function SmartRuleBuilder({ open, onClose, onSubmit, entry, policies }) {
   const [selectedPattern, setSelectedPattern] = useState('');
   const [method, setMethod] = useState('');
   const [action, setAction] = useState('allow');
+  const [policy, setPolicy] = useState(null);
 
   const patterns = entry ? generatePatterns(entry.url) : [];
 
@@ -60,14 +72,25 @@ export function SmartRuleBuilder({ open, onClose, onSubmit, entry }) {
     }
   }, [entry?.url]);
 
+  // Default policy to first available when policies list changes
+  useEffect(() => {
+    if (policies && policies.length > 0) {
+      setPolicy(policies[0].id);
+    } else {
+      setPolicy(null);
+    }
+  }, [policies]);
+
   const handleSubmit = () => {
-    onSubmit({
+    const rule = {
       url_pattern: selectedPattern,
       methods: method === 'ALL' ? [] : [method],
       action,
       name: `Rule for ${selectedPattern}`,
       enabled: true,
-    });
+    };
+    if (policy) rule.policy_id = policy;
+    onSubmit(rule);
   };
 
   return (
@@ -108,6 +131,21 @@ export function SmartRuleBuilder({ open, onClose, onSubmit, entry }) {
           </select>
         </div>
       </div>
+      {policies && policies.length > 0 && (
+        <div className={styles.section}>
+          <div className={styles.label}>Add to policy</div>
+          <select
+            className={styles.select}
+            value={policy ?? ''}
+            onChange={e => setPolicy(e.target.value || null)}
+          >
+            <option value="">— no policy —</option>
+            {policies.map(p => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
       <div className={styles.actions}>
         <button className={styles.submitBtn} onClick={handleSubmit}>Create Rule</button>
         <button className={styles.cancelBtn} onClick={onClose}>Cancel</button>

@@ -54,8 +54,8 @@
 .dismissBtn:hover { color: var(--color-text); }
 
 .table { background: var(--color-bg-card); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; }
-.tableHeader { display: grid; grid-template-columns: 1fr 2fr 80px 80px 90px 180px; padding: 10px 14px; background: var(--color-bg-page); border-bottom: 1px solid var(--color-border); font-weight: 500; color: var(--color-text-secondary); font-size: 11px; }
-.tableRow { display: grid; grid-template-columns: 1fr 2fr 80px 80px 90px 180px; padding: 10px 14px; border-bottom: 1px solid var(--color-border-light); align-items: center; font-size: 12px; color: var(--color-text); }
+.tableHeader { display: grid; grid-template-columns: 1fr 2fr 80px 80px 90px 1fr 180px; padding: 10px 14px; background: var(--color-bg-page); border-bottom: 1px solid var(--color-border); font-weight: 500; color: var(--color-text-secondary); font-size: 11px; }
+.tableRow { display: grid; grid-template-columns: 1fr 2fr 80px 80px 90px 1fr 180px; padding: 10px 14px; border-bottom: 1px solid var(--color-border-light); align-items: center; font-size: 12px; color: var(--color-text); }
 .tableRowDisabled { composes: tableRow; opacity: 0.5; }
 
 .cellDesc { color: var(--color-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -71,3 +71,113 @@
 .dotGrey { composes: dot; background: var(--color-text-muted); }
 
 .empty { padding: 40px; text-align: center; color: var(--color-text-muted); font-size: 13px; }
+
+/* Policy chips in agent table */
+.cellPolicies {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.policyChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: var(--color-accent-light);
+  color: var(--color-accent);
+  border: 1px solid var(--color-accent);
+  border-radius: 10px;
+  padding: 1px 6px 1px 8px;
+  font-size: 10px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.policyChipRemove {
+  background: none;
+  border: none;
+  color: var(--color-accent);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  opacity: 0.7;
+}
+
+.policyChipRemove:hover {
+  opacity: 1;
+}
+
+.assignWrapper {
+  position: relative;
+  display: inline-flex;
+}
+
+.assignBtn {
+  background: none;
+  border: 1px dashed var(--color-border);
+  border-radius: 10px;
+  padding: 1px 8px;
+  font-size: 10px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.assignBtn:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.assignDropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 100;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  min-width: 160px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.assignOption {
+  background: none;
+  border: none;
+  text-align: left;
+  padding: 7px 12px;
+  font-size: 12px;
+  color: var(--color-text);
+  cursor: pointer;
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.assignOption:hover {
+  background: var(--color-bg-hover);
+}
+
+.assignEmpty {
+  padding: 8px 12px;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  display: block;
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.assignClose {
+  background: none;
+  border: none;
+  text-align: left;
+  padding: 6px 12px;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.assignClose:hover {
+  background: var(--color-bg-hover);
+}

@@ -191,3 +191,96 @@
   align-items: center;
   justify-content: center;
 }
+
+/* Agent info bar */
+.agentInfoBar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  border-bottom: 1px solid var(--color-border-light);
+  font-size: 11px;
+  background: var(--color-bg-page);
+  flex-wrap: wrap;
+}
+
+.agentInfoLabel {
+  color: var(--color-text-muted);
+}
+
+.agentInfoName {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.agentPolicies {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.policyBadge {
+  background: var(--color-accent-light);
+  color: var(--color-accent);
+  border: 1px solid var(--color-accent);
+  border-radius: 10px;
+  padding: 1px 7px;
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.agentNoPolicies {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+/* Matching policy suggestion banner */
+.matchBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--color-allow-bg);
+  border-bottom: 1px solid var(--color-allow-border);
+  font-size: 11px;
+  color: var(--color-allow);
+  flex-wrap: wrap;
+}
+
+.matchBanner strong {
+  color: var(--color-text);
+}
+
+.assignPolicyBtn {
+  background: var(--color-allow);
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.assignPolicyBtn:hover {
+  opacity: 0.85;
+}
+
+/* Assign policy action button in the action panel */
+.assignPolicyActionBtn {
+  padding: 8px;
+  background: var(--color-allow);
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  width: 100%;
+}
+
+.assignPolicyActionBtn:hover {
+  opacity: 0.85;
+}

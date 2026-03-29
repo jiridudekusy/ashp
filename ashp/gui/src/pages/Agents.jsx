@@ -8,6 +8,10 @@
  * Token banners (createdToken, rotatedToken) persist until manually dismissed,
  * giving the user time to copy the credential. Deleting an agent cascades to
  * all their request logs and approval queue entries.
+ *
+ * Each agent row displays its assigned policies as chips. Clicking "+ Assign"
+ * opens an inline dropdown to assign an additional policy; clicking × on a chip
+ * unassigns that policy from the agent.
  */
 import { useState, useEffect, useCallback } from 'react';
 import { Modal } from '../components/Modal';
@@ -19,15 +23,35 @@ import styles from './Agents.module.css';
  */
 export default function Agents({ api }) {
   const [agents, setAgents] = useState([]);
+  const [policies, setPolicies] = useState([]);
+  /** Map of agent_id → array of policy objects assigned to that agent */
+  const [agentPolicies, setAgentPolicies] = useState({});
+  /** agent_id → boolean: whether the assign dropdown is open */
+  const [assignOpen, setAssignOpen] = useState({});
   const [editing, setEditing] = useState(null); // null | 'new' | agent object
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [createdToken, setCreatedToken] = useState(null);
   const [rotatedToken, setRotatedToken] = useState(null);
 
+  const buildAgentPoliciesMap = useCallback((agentList, policyList) => {
+    const map = {};
+    agentList.forEach(a => { map[a.id] = []; });
+    policyList.forEach(p => {
+      const ids = p.agent_ids || p.agents || [];
+      ids.forEach(agentId => {
+        if (map[agentId]) map[agentId].push(p);
+      });
+    });
+    setAgentPolicies(map);
+  }, []);
+
   const load = useCallback(async () => {
-    setAgents(await api.getAgents());
-  }, [api]);
+    const [agentList, policyList] = await Promise.all([api.getAgents(), api.getPolicies()]);
+    setAgents(agentList);
+    setPolicies(policyList);
+    buildAgentPoliciesMap(agentList, policyList);
+  }, [api, buildAgentPoliciesMap]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -74,6 +98,22 @@ export default function Agents({ api }) {
     if (!confirm(`Rotate token for "${agent.name}"? The old token will stop working immediately.`)) return;
     const result = await api.rotateToken(agent.id);
     setRotatedToken({ name: agent.name, token: result.token });
+  };
+
+  const handleAssignPolicy = async (agentId, policyId) => {
+    if (!policyId) return;
+    await api.assignPolicyAgent(policyId, agentId);
+    setAssignOpen(prev => ({ ...prev, [agentId]: false }));
+    load();
+  };
+
+  const handleUnassignPolicy = async (agentId, policyId) => {
+    await api.unassignPolicyAgent(policyId, agentId);
+    load();
+  };
+
+  const toggleAssignDropdown = (agentId) => {
+    setAssignOpen(prev => ({ ...prev, [agentId]: !prev[agentId] }));
   };
 
   return (
@@ -126,28 +166,78 @@ export default function Agents({ api }) {
       ) : (
         <div className={styles.table}>
           <div className={styles.tableHeader}>
-            <span>Name</span><span>Description</span><span>Requests</span><span>Status</span><span>Created</span><span></span>
+            <span>Name</span><span>Description</span><span>Requests</span><span>Status</span><span>Created</span><span>Policies</span><span></span>
           </div>
-          {agents.map(a => (
-            <div key={a.id} className={a.enabled ? styles.tableRow : styles.tableRowDisabled}>
-              <span>{a.name}</span>
-              <span className={styles.cellDesc}>{a.description}</span>
-              <span>{a.request_count}</span>
-              <span>
-                <span className={a.enabled ? styles.dotGreen : styles.dotGrey} />
-                {a.enabled ? 'Active' : 'Disabled'}
-              </span>
-              <span>{new Date(a.created_at).toLocaleDateString()}</span>
-              <span className={styles.cellActions}>
-                <button className={styles.editLink} onClick={() => openEdit(a)}>Edit</button>
-                <button className={styles.toggleLink} onClick={() => handleToggle(a)}>
-                  {a.enabled ? 'Disable' : 'Enable'}
-                </button>
-                <button className={styles.rotateLink} onClick={() => handleRotate(a)}>Rotate</button>
-                <button className={styles.deleteLink} onClick={() => handleDelete(a)}>Delete</button>
-              </span>
-            </div>
-          ))}
+          {agents.map(a => {
+            const assigned = agentPolicies[a.id] || [];
+            const unassigned = policies.filter(p => !assigned.some(ap => ap.id === p.id));
+            return (
+              <div key={a.id} className={a.enabled ? styles.tableRow : styles.tableRowDisabled}>
+                <span>{a.name}</span>
+                <span className={styles.cellDesc}>{a.description}</span>
+                <span>{a.request_count}</span>
+                <span>
+                  <span className={a.enabled ? styles.dotGreen : styles.dotGrey} />
+                  {a.enabled ? 'Active' : 'Disabled'}
+                </span>
+                <span>{new Date(a.created_at).toLocaleDateString()}</span>
+                {/* Policies column */}
+                <span className={styles.cellPolicies}>
+                  {assigned.map(p => (
+                    <span key={p.id} className={styles.policyChip}>
+                      {p.name}
+                      <button
+                        className={styles.policyChipRemove}
+                        onClick={() => handleUnassignPolicy(a.id, p.id)}
+                        title={`Unassign policy "${p.name}"`}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                  <span className={styles.assignWrapper}>
+                    <button
+                      className={styles.assignBtn}
+                      onClick={() => toggleAssignDropdown(a.id)}
+                    >
+                      + Assign
+                    </button>
+                    {assignOpen[a.id] && (
+                      <span className={styles.assignDropdown}>
+                        {unassigned.length === 0 ? (
+                          <span className={styles.assignEmpty}>All policies assigned</span>
+                        ) : (
+                          unassigned.map(p => (
+                            <button
+                              key={p.id}
+                              className={styles.assignOption}
+                              onClick={() => handleAssignPolicy(a.id, p.id)}
+                            >
+                              {p.name}
+                            </button>
+                          ))
+                        )}
+                        <button
+                          className={styles.assignClose}
+                          onClick={() => setAssignOpen(prev => ({ ...prev, [a.id]: false }))}
+                        >
+                          Cancel
+                        </button>
+                      </span>
+                    )}
+                  </span>
+                </span>
+                <span className={styles.cellActions}>
+                  <button className={styles.editLink} onClick={() => openEdit(a)}>Edit</button>
+                  <button className={styles.toggleLink} onClick={() => handleToggle(a)}>
+                    {a.enabled ? 'Disable' : 'Enable'}
+                  </button>
+                  <button className={styles.rotateLink} onClick={() => handleRotate(a)}>Rotate</button>
+                  <button className={styles.deleteLink} onClick={() => handleDelete(a)}>Delete</button>
+                </span>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

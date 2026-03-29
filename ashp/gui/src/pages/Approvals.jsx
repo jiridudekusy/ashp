@@ -12,6 +12,10 @@
  * pre-filled with the request's URL pattern, letting the user create a
  * permanent allow rule so future identical requests pass automatically.
  *
+ * Each approval card shows the agent name and its currently assigned policies.
+ * If a matching policy already has rules for the request, a suggestion banner
+ * is shown with an "Assign Policy" shortcut action.
+ *
  * Recently resolved approvals are kept in local state (last 10) for context,
  * updated via SSE 'approval.resolved' events.
  */
@@ -59,12 +63,42 @@ export default function Approvals({ api, events }) {
   const [selected, setSelected] = useState(null);
   const [ruleEntry, setRuleEntry] = useState(null);
   const [, setTick] = useState(0);
+  const [agents, setAgents] = useState([]);
+  const [policies, setPolicies] = useState([]);
+  /** Map of agent_id → array of policy objects assigned to that agent */
+  const [agentPolicies, setAgentPolicies] = useState({});
+  /** Matching policy suggestion for the currently selected approval */
+  const [matchSuggestion, setMatchSuggestion] = useState(null);
 
   const load = useCallback(() => {
     api.getApprovals().then(setApprovals);
   }, [api]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Load agents and policies once on mount
+  useEffect(() => {
+    Promise.all([api.getAgents(), api.getPolicies()]).then(([agentList, policyList]) => {
+      setAgents(agentList);
+      setPolicies(policyList);
+    });
+  }, [api]);
+
+  // When agents or policies change, build a map of agent_id → policies
+  useEffect(() => {
+    if (!agents.length || !policies.length) return;
+    // Each policy has an `agents` array (list of agent_ids) if the API returns it,
+    // or we derive it by checking policy.agent_ids. We build the reverse map.
+    const map = {};
+    agents.forEach(a => { map[a.id] = []; });
+    policies.forEach(p => {
+      const ids = p.agent_ids || p.agents || [];
+      ids.forEach(agentId => {
+        if (map[agentId]) map[agentId].push(p);
+      });
+    });
+    setAgentPolicies(map);
+  }, [agents, policies]);
 
   // Tick every second to update relative times and progress bars
   useEffect(() => {
@@ -88,6 +122,23 @@ export default function Approvals({ api, events }) {
     events.subscribe(handler);
     return () => events.unsubscribe(handler);
   }, [events, load]);
+
+  // When selection changes, check for matching policies
+  useEffect(() => {
+    setMatchSuggestion(null);
+    if (!selected) return;
+    const url = selected.url || selected.suggested_pattern || '';
+    const method = selected.method || 'GET';
+    if (!url) return;
+    api.matchPolicies(url, method)
+      .then(result => {
+        // result is expected to be an array of matching policy objects
+        if (result && result.length > 0) {
+          setMatchSuggestion(result[0]);
+        }
+      })
+      .catch(() => {}); // silently ignore if endpoint unavailable
+  }, [selected, api]);
 
   async function handleApprove(id) {
     await api.resolveApproval(id, { action: 'approve' });
@@ -113,6 +164,25 @@ export default function Approvals({ api, events }) {
     setRuleEntry(null);
   }
 
+  /**
+   * Assigns the suggested matching policy to the approval's agent,
+   * then approves the request.
+   */
+  async function handleAssignPolicy(approval, policyId) {
+    const agentId = approval.agent_id;
+    if (agentId && policyId) {
+      await api.assignPolicyAgent(policyId, agentId);
+      // Refresh agent policies map
+      const [agentList, policyList] = await Promise.all([api.getAgents(), api.getPolicies()]);
+      setAgents(agentList);
+      setPolicies(policyList);
+    }
+    await api.resolveApproval(approval.id, { action: 'approve' });
+    if (selected?.id === approval.id) setSelected(null);
+    setMatchSuggestion(null);
+    load();
+  }
+
   const entry = approvalToEntry(selected);
   const timeoutSeconds = DEFAULT_TIMEOUT;
 
@@ -125,6 +195,40 @@ export default function Approvals({ api, events }) {
       </div>
     );
   })() : null;
+
+  // Agent info bar for the selected approval
+  const selectedAgent = selected ? agents.find(a => a.id === selected.agent_id) : null;
+  const selectedAgentPolicies = selectedAgent ? (agentPolicies[selectedAgent.id] || []) : [];
+
+  const agentInfoBar = selectedAgent ? (
+    <div className={styles.agentInfoBar}>
+      <span className={styles.agentInfoLabel}>Agent:</span>
+      <span className={styles.agentInfoName}>{selectedAgent.name}</span>
+      {selectedAgentPolicies.length > 0 ? (
+        <span className={styles.agentPolicies}>
+          {selectedAgentPolicies.map(p => (
+            <span key={p.id} className={styles.policyBadge}>{p.name}</span>
+          ))}
+        </span>
+      ) : (
+        <span className={styles.agentNoPolicies}>no policies assigned</span>
+      )}
+    </div>
+  ) : null;
+
+  const matchBanner = matchSuggestion ? (
+    <div className={styles.matchBanner}>
+      <span>
+        Policy <strong>{matchSuggestion.name}</strong> already contains matching rules.
+      </span>
+      <button
+        className={styles.assignPolicyBtn}
+        onClick={() => handleAssignPolicy(selected, matchSuggestion.id)}
+      >
+        Assign to agent
+      </button>
+    </div>
+  ) : null;
 
   const listPane = (
     <>
@@ -177,6 +281,8 @@ export default function Approvals({ api, events }) {
   const detailPane = (
     <div className={styles.detailWrapper}>
       <div className={styles.detailContent}>
+        {agentInfoBar}
+        {matchBanner}
         <DetailPanel entry={entry} api={api}>
           {countdownNode}
         </DetailPanel>
@@ -198,6 +304,14 @@ export default function Approvals({ api, events }) {
               Reject
             </button>
           </div>
+          {matchSuggestion && (
+            <button
+              className={styles.assignPolicyActionBtn}
+              onClick={() => handleAssignPolicy(selected, matchSuggestion.id)}
+            >
+              Assign Policy &ldquo;{matchSuggestion.name}&rdquo; + Approve
+            </button>
+          )}
           <button
             className={styles.approveRuleBtn}
             onClick={() => handleApproveAndRule(selected)}
@@ -224,6 +338,7 @@ export default function Approvals({ api, events }) {
         onClose={() => setRuleEntry(null)}
         onSubmit={handleCreateRule}
         entry={ruleEntry}
+        policies={policies}
       />
     </div>
   );
