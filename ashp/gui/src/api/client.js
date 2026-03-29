@@ -89,6 +89,18 @@ function createClient(baseURL = '', credentials = '') {
     updateAgent:      (id, data)  => request('PUT', `/api/agents/${id}`, data),
     deleteAgent:      (id)        => request('DELETE', `/api/agents/${id}`),
     rotateToken:      (id)        => request('POST', `/api/agents/${id}/rotate-token`),
+    // Policies
+    getPolicies:        ()            => request('GET', '/api/policies'),
+    getPolicy:          (id)          => request('GET', `/api/policies/${id}`),
+    createPolicy:       (data)        => request('POST', '/api/policies', data),
+    updatePolicy:       (id, data)    => request('PUT', `/api/policies/${id}`, data),
+    deletePolicy:       (id)          => request('DELETE', `/api/policies/${id}`),
+    addPolicyChild:     (id, childId) => request('POST', `/api/policies/${id}/children`, { child_id: childId }),
+    removePolicyChild:  (id, childId) => request('DELETE', `/api/policies/${id}/children/${childId}`),
+    assignPolicyAgent:  (id, agentId) => request('POST', `/api/policies/${id}/agents`, { agent_id: agentId }),
+    unassignPolicyAgent:(id, agentId) => request('DELETE', `/api/policies/${id}/agents/${agentId}`),
+    matchPolicies:      (url, method) => request('GET', `/api/policies/match?url=${encodeURIComponent(url)}&method=${method}`),
+    moveRule:           (id, policyId)=> request('POST', `/api/rules/${id}/move`, { policy_id: policyId }),
     // Auth credentials for SSE
     credentials,
   };
