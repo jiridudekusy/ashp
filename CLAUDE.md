@@ -39,7 +39,7 @@ Docker prod build: `cd ashp && docker build -t ashp:latest .`
 ### IPC Protocol (Unix Socket)
 Newline-delimited JSON frames with `msg_id` (UUID) and `ref` for request-response correlation.
 
-- **Node → Go:** `rules.reload`, `agents.reload`, `config.update`, `approval.resolve` (ref=ipc_msg_id)
+- **Node → Go:** `rules.reload` (per-agent rule map), `agents.reload`, `config.update`, `approval.resolve` (ref=ipc_msg_id)
 - **Go → Node:** `request.logged`, `request.blocked`, `approval.needed` (msg_id used for correlation)
 
 The approval flow is the critical path: Go holds the HTTP connection open, sends `approval.needed` with a `msg_id`, Node stores it as `ipc_msg_id` in approval_queue, user resolves via GUI, Node sends `approval.resolve` with `ref` matching the original `msg_id`.
@@ -47,7 +47,7 @@ The approval flow is the critical path: Go holds the HTTP connection open, sends
 ### Request Flow (Go Proxy)
 1. Authenticate agent via `Proxy-Authorization` Basic header (bcrypt with 60s TTL cache)
 2. Reconstruct URL, strip default ports (80/443)
-3. Evaluate rules by priority descending (first match wins, regex patterns compiled on load)
+3. Evaluate **per-agent** rules by priority descending (first match wins, regex patterns compiled on load)
 4. Action: **deny** → 403, **allow** → forward, **hold** → block waiting for approval
 5. Capture bodies per rule config (`full`/`truncate:N`/`none`)
 6. Send IPC message with metadata and encrypted body references
@@ -55,13 +55,17 @@ The approval flow is the critical path: Go holds the HTTP connection open, sends
 ### Encrypted Logging
 Request/response bodies are AES-256-GCM encrypted (HKDF key derivation per record offset) into hourly files: `logs/YYYY/MM/DD/HH.log.enc`. DB stores `path:offset:length` references. Server decrypts on demand via `/api/logs/:id/request-body`.
 
-### Database Schema (SQLite, currently v2)
-- `rules` — url_pattern (regex), methods (JSON array), action, priority, agent_id, logging config, hit_count
+### Database Schema (SQLite, currently v3)
+- `policies` — name (unique), description, created_at. Hierarchical via `policy_children` (parent_id, child_id). Assigned to agents via `agent_policies` (M:N).
+- `rules` — url_pattern (regex), methods (JSON array), action, priority, policy_id (FK to policies), logging config, hit_count
 - `request_log` — method, url, headers (JSON), body refs, status, duration, decision, agent_id
 - `approval_queue` — request_log_id, ipc_msg_id (correlates to Go msg_id), status, create_rule flag
 - `agents` — name (unique), token_hash (bcrypt), enabled, request_count, description
 
-FK constraints: delete agent cascades to approval_queue → request_log (delete approvals first due to FK).
+FK constraints: delete agent cascades to approval_queue → request_log (delete approvals first due to FK). Delete policy sets rules.policy_id to NULL.
+
+### Policies (Rule Grouping)
+Rules are organized into hierarchical policies (tree structure). Policies are assigned to agents (M:N). Each agent only sees rules from its assigned policies (including sub-policies). Server resolves the policy tree per-agent and sends a flat, priority-sorted rule list via IPC. Cycle detection prevents circular policy hierarchies. A "default" policy is created on migration containing all pre-existing rules.
 
 ### GUI
 React 19 + React Router 7 + Vite 6, CSS modules. SSE via `/api/events` for real-time updates (EventBus with circular buffer, `Last-Event-ID` reconnection). API client uses Basic auth stored in sessionStorage.
