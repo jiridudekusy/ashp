@@ -124,6 +124,35 @@ describe('SqliteRulesDAO', () => {
     assert.equal(result, null);
   });
 
+  describe('policy_id support', () => {
+    it('create with policy_id stores and returns it', async () => {
+      const policies = db.prepare('SELECT * FROM policies').all();
+      const defaultPolicy = policies.find(p => p.name === 'default');
+      const rule = await dao.create({
+        name: 'test', url_pattern: '.*', action: 'allow', policy_id: defaultPolicy.id,
+      });
+      assert.equal(rule.policy_id, defaultPolicy.id);
+    });
+
+    it('list with policy_id filter returns only matching rules', async () => {
+      const policies = db.prepare('SELECT * FROM policies').all();
+      const defaultPolicy = policies.find(p => p.name === 'default');
+      await dao.create({ name: 'A', url_pattern: 'a.*', action: 'allow', policy_id: defaultPolicy.id });
+      await dao.create({ name: 'B', url_pattern: 'b.*', action: 'allow', policy_id: null });
+      const filtered = await dao.list({ policy_id: defaultPolicy.id });
+      assert.ok(filtered.every(r => r.policy_id === defaultPolicy.id));
+    });
+
+    it('moveToPolicy changes policy_id', async () => {
+      const policies = db.prepare('SELECT * FROM policies').all();
+      const defaultPolicy = policies.find(p => p.name === 'default');
+      const info = db.prepare("INSERT INTO policies (name) VALUES ('other')").run();
+      const rule = await dao.create({ name: 'R', url_pattern: '.*', action: 'allow', policy_id: defaultPolicy.id });
+      const moved = await dao.moveToPolicy(rule.id, info.lastInsertRowid);
+      assert.equal(moved.policy_id, info.lastInsertRowid);
+    });
+  });
+
   describe('hit count', () => {
     it('incrementHitCount increments total and today', async () => {
       const rule = await dao.create({ name: 'r1', url_pattern: '^http://x', methods: [], action: 'allow' });

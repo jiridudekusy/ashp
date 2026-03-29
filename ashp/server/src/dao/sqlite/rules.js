@@ -65,8 +65,20 @@ export class SqliteRulesDAO extends RulesDAO {
     };
   }
 
-  /** @returns {Promise<import('../interfaces.js').Rule[]>} All rules, highest priority first. */
-  async list() {
+  /**
+   * Returns all rules ordered by priority descending.
+   * Accepts an optional filter object; currently supports `policy_id` to return
+   * only rules belonging to a specific policy.
+   *
+   * @param {Object} [filter={}]
+   * @param {number|null} [filter.policy_id] - If provided, restricts results to this policy.
+   * @returns {Promise<import('../interfaces.js').Rule[]>}
+   */
+  async list(filter = {}) {
+    if (filter.policy_id) {
+      return this.#db.prepare('SELECT * FROM rules WHERE policy_id = ? ORDER BY priority DESC')
+        .all(filter.policy_id).map(deserialize);
+    }
     return this.#stmts.list.all().map(deserialize);
   }
 
@@ -116,6 +128,18 @@ export class SqliteRulesDAO extends RulesDAO {
       this.#db.prepare(`UPDATE rules SET ${fields.join(',')} WHERE id=@id`).run(params);
     }
     return this.get(id);
+  }
+
+  /**
+   * Moves a rule to a different policy by updating its `policy_id`.
+   *
+   * @param {number} ruleId - ID of the rule to move.
+   * @param {number|null} policyId - Target policy ID (or null to unassign).
+   * @returns {Promise<import('../interfaces.js').Rule|null>} The updated rule, or null if not found.
+   */
+  async moveToPolicy(ruleId, policyId) {
+    this.#db.prepare('UPDATE rules SET policy_id = ? WHERE id = ?').run(policyId, ruleId);
+    return this.get(ruleId);
   }
 
   /** @param {number} id @returns {Promise<void>} */
