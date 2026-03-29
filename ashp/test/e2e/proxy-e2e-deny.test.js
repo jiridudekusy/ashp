@@ -8,13 +8,17 @@ describe('E2E: proxy deny by rule', { timeout: 30000 }, () => {
   before(async () => {
     t = await createFullStack({
       default_behavior: 'deny',
-      rules: [{
-        name: 'Deny target',
-        url_pattern: '^http://127\\.0\\.0\\.1.*$',
-        methods: ['GET'],
-        action: 'deny',
-        priority: 100,
-        enabled: true,
+      policies: [{
+        name: 'DenyTarget',
+        rules: [{
+          name: 'Deny target',
+          url_pattern: '^http://127\\.0\\.0\\.1.*$',
+          methods: ['GET'],
+          action: 'deny',
+          priority: 100,
+          enabled: true,
+        }],
+        assignToAgent: true,
       }],
     });
   });

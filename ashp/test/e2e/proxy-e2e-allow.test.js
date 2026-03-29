@@ -8,13 +8,17 @@ describe('E2E: proxy allow flow', { timeout: 30000 }, () => {
   before(async () => {
     t = await createFullStack({
       default_behavior: 'deny',
-      rules: [{
-        name: 'Allow target',
-        url_pattern: '^http://127\\.0\\.0\\.1.*$',
-        methods: ['GET'],
-        action: 'allow',
-        priority: 100,
-        enabled: true,
+      policies: [{
+        name: 'AllowTarget',
+        rules: [{
+          name: 'Allow target',
+          url_pattern: '^http://127\\.0\\.0\\.1.*$',
+          methods: ['GET'],
+          action: 'allow',
+          priority: 100,
+          enabled: true,
+        }],
+        assignToAgent: true,
       }],
     });
   });

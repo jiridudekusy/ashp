@@ -143,6 +143,26 @@ export async function createFullStack(options = {}) {
     await api('POST', '/api/rules', rule);
   }
 
+  // 7b. Create policies if provided
+  if (options.policies) {
+    for (const pol of options.policies) {
+      const { status, body: policy } = await api('POST', '/api/policies', { name: pol.name, description: pol.description || '' });
+      if (pol.rules) {
+        for (const rule of pol.rules) {
+          await api('POST', '/api/rules', { ...rule, policy_id: policy.id });
+        }
+      }
+      if (pol.assignToAgent) {
+        // Look up agent by name — we created 'agent1' earlier
+        const { body: agents } = await api('GET', '/api/agents');
+        const agent = agents.find(a => a.name === 'agent1');
+        if (agent) {
+          await api('POST', `/api/policies/${policy.id}/agents`, { agent_id: agent.id });
+        }
+      }
+    }
+  }
+
   // 8. Start proxy via ProxyManager
   stack.proxyManager.start();
 
