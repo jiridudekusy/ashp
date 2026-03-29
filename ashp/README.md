@@ -3,10 +3,12 @@
 MITM proxy that sits between AI agents and the internet. Controls which HTTP requests agents can make, with real-time approval flows and encrypted request logging.
 
 **Key features:**
+- **Policies** — organize rules into hierarchical groups, assign to agents for per-agent access control
 - Rule engine with allow/deny/hold actions and URL pattern matching
 - Hold & approve flow — pause requests for human review before forwarding
 - Encrypted request/response body logging (AES-256-GCM)
-- Admin GUI with live activity feed, rule management, and request inspector
+- Agent management with token-based proxy authentication (bcrypt)
+- Admin GUI with policy tree, live activity feed, rule management, and request inspector
 - SSE real-time events for approvals and request monitoring
 
 ## Quick Start
@@ -22,8 +24,8 @@ docker run -d --name ashp \
   jiridudkusy/ashp
 ```
 
-- **GUI + API:** http://localhost:3000 (token: `change-me-mgmt-token`)
-- **Proxy:** http://localhost:8080 (user: `agent1`, pass: `change-me-agent-token`)
+- **GUI + API:** http://localhost:3000 (user: `admin`, pass: `change-me-admin-password`)
+- **Proxy:** http://localhost:8080 (create agents via GUI, use agent name + token for proxy auth)
 
 Configure your agent's HTTP client to use the proxy:
 
@@ -75,7 +77,7 @@ The config file is JSON. All `env:VAR_NAME` values are resolved from environment
   },
   "management": {
     "listen": "0.0.0.0:3000",
-    "bearer_token": "change-me-mgmt-token"
+    "auth": { "admin": "env:ASHP_ADMIN_PASSWORD" }
   },
   "rules": {
     "source": "db"
@@ -96,10 +98,10 @@ The config file is JSON. All `env:VAR_NAME` values are resolved from environment
 | Field | Description |
 |-------|-------------|
 | `proxy.listen` | Proxy bind address |
-| `proxy.auth` | Map of agent credentials (`user: password`) for proxy authentication |
+| `proxy.auth` | _(deprecated, use Agents API)_ Legacy agent credentials map |
 | `proxy.hold_timeout` | Seconds to wait for approval before timing out held requests |
 | `management.listen` | API/GUI bind address |
-| `management.bearer_token` | Bearer token for API authentication |
+| `management.auth` | Map of `username: password` for Basic auth on management API |
 | `rules.source` | `"db"` (SQLite, editable via API) or `"file"` (read-only JSON file) |
 | `default_behavior` | Action for unmatched requests: `"deny"`, `"hold"` |
 | `database.path` | SQLite database file path |
@@ -116,7 +118,7 @@ Rules control what happens to each proxied request. They are evaluated by priori
 |-------|-------------|
 | `url_pattern` | Regex matched against the full URL |
 | `methods` | HTTP methods to match (empty = all) |
-| `action` | `"allow"`, `"deny"`, or `"hold"` |
+| `action` | `"allow"` or `"deny"` |
 | `priority` | Higher = evaluated first |
 | `enabled` | Toggle without deleting |
 | `log_request_body` | `"full"`, `"none"`, `"truncate:65536"` |
@@ -125,7 +127,9 @@ Rules control what happens to each proxied request. They are evaluated by priori
 **Actions:**
 - **allow** — forward request to target, log response
 - **deny** — block immediately, return 403
-- **hold** — pause request, wait for human approval via GUI/API. Times out after `hold_timeout` seconds.
+When no rule matches, the `default_behavior` config applies (`deny`, `hold`, or `queue`). Hold pauses the request and waits for human approval via GUI/API, timing out after `hold_timeout` seconds.
+
+Rules belong to **policies** (named groups). Policies are assigned to agents — each agent only sees rules from its assigned policies.
 
 **Example:** Allow all OpenAI API calls with full body logging:
 ```json
@@ -145,15 +149,16 @@ Rules control what happens to each proxied request. They are evaluated by priori
 The admin panel is served at the same port as the API (default `:3000`).
 
 - **Dashboard** — proxy status, rule count, pending approvals, live activity feed
-- **Rules** — create/edit/delete rules, test URLs against rule engine
+- **Rules & Policies** — sidebar policy tree + rule table, create/edit/move rules between policies, assign policies to agents
 - **Logs** — browse request history with filters (method, decision, URL), inspect request/response bodies with syntax highlighting
-- **Approvals** — pending approval queue with countdown timers, approve/reject/approve+create rule
+- **Approvals** — pending approval queue with agent info, matching policy suggestions, approve/reject/approve+create rule/assign policy
+- **Agents** — create/manage agents, assign policies, rotate tokens
 
 Supports light/dark/system themes.
 
 ## API Reference
 
-All API endpoints require `Authorization: Bearer <token>` header.
+All API endpoints (except status and CA cert) require `Authorization: Basic <base64(user:pass)>` header.
 
 ### Status
 | Method | Path | Description |
@@ -170,6 +175,30 @@ All API endpoints require `Authorization: Bearer <token>` header.
 | `PUT` | `/api/rules/:id` | Update rule |
 | `DELETE` | `/api/rules/:id` | Delete rule |
 | `POST` | `/api/rules/test` | Test URL against rules (`{url, method}`) |
+
+### Policies
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/policies` | List all policies (tree) |
+| `POST` | `/api/policies` | Create policy |
+| `GET` | `/api/policies/:id` | Get policy detail + children + agents |
+| `PUT` | `/api/policies/:id` | Update policy |
+| `DELETE` | `/api/policies/:id` | Delete policy |
+| `POST` | `/api/policies/:id/children` | Add sub-policy |
+| `DELETE` | `/api/policies/:id/children/:childId` | Remove sub-policy |
+| `POST` | `/api/policies/:id/agents` | Assign policy to agent |
+| `DELETE` | `/api/policies/:id/agents/:agentId` | Unassign from agent |
+| `GET` | `/api/policies/match` | Find policies matching URL+method |
+
+### Agents
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/agents` | List agents |
+| `POST` | `/api/agents` | Create agent (returns plaintext token) |
+| `GET` | `/api/agents/:id` | Get agent |
+| `PUT` | `/api/agents/:id` | Update agent |
+| `DELETE` | `/api/agents/:id` | Delete agent |
+| `POST` | `/api/agents/:id/rotate-token` | Rotate token |
 
 ### Logs
 | Method | Path | Description |
