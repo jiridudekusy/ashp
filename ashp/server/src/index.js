@@ -37,8 +37,10 @@ import rulesRoutes from './api/rules.js';
 import logsRoutes from './api/logs.js';
 import approvalsRoutes from './api/approvals.js';
 import agentsRoutes from './api/agents.js';
+import policiesRoutes from './api/policies.js';
 import statusRoutes from './api/status.js';
 import { SqliteAgentsDAO } from './dao/sqlite/agents.js';
+import { SqlitePoliciesDAO } from './dao/sqlite/policies.js';
 import * as crypto from './crypto/index.js';
 import { mkdirSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
@@ -65,6 +67,7 @@ export async function startServer(flags = {}) {
   const requestLogDAO = new SqliteRequestLogDAO(db);
   const approvalQueueDAO = new SqliteApprovalQueueDAO(db);
   const agentsDAO = new SqliteAgentsDAO(db);
+  const policiesDAO = new SqlitePoliciesDAO(db);
 
   // IPC — clean up stale socket from previous run
   const socketPath = config.ipc_socket || resolve(dataDir, 'ashp.sock');
@@ -74,9 +77,25 @@ export async function startServer(flags = {}) {
   const webhooks = new WebhookDispatcher(config.webhooks || []);
   const logKey = config.encryption?.log_key ? Buffer.from(config.encryption.log_key, 'hex') : null;
 
+  /**
+   * Builds a per-agent rules map and sends it to the Go proxy via IPC.
+   * Each agent gets only the rules reachable through its assigned policies
+   * (direct + transitive children), keyed by agent name.
+   *
+   * @returns {Promise<void>}
+   */
+  async function sendAgentRulesReload() {
+    const agents = await agentsDAO.list();
+    const rulesMap = {};
+    for (const agent of agents) {
+      rulesMap[agent.name] = await policiesDAO.resolveAgentRules(agent.id);
+    }
+    ipc.send({ type: 'rules.reload', data: rulesMap });
+  }
+
   /*
    * IPC message flow between Node and the Go proxy:
-   * - On proxy connect: push full rules + agents list so the proxy has current state.
+   * - On proxy connect: push per-agent rules map + agents list so the proxy has current state.
    * - On 'request.logged' / 'request.blocked': persist to request_log, emit SSE event.
    * - On 'approval.needed': persist log + enqueue approval with `ipc_msg_id` for later
    *   correlation when the human resolves it (see api/approvals.js).
@@ -85,8 +104,7 @@ export async function startServer(flags = {}) {
   const ipc = new IPCServer(socketPath, {
     onConnect: async () => {
       try {
-        const rules = await rulesDAO.list();
-        ipc.send({ type: 'rules.reload', data: rules });
+        await sendAgentRulesReload();
         const agents = agentsDAO.listForProxy();
         ipc.send({ type: 'agents.reload', data: agents });
       } catch (err) {
@@ -137,8 +155,7 @@ export async function startServer(flags = {}) {
   proxyArgs.push('--log-dir', resolve(dataDir, 'logs'));
 
   const proxyManager = new ProxyManager(proxyBinPath, proxyArgs, { onRestart: async () => {
-    const rules = await rulesDAO.list();
-    ipc.send({ type: 'rules.reload', data: rules });
+    await sendAgentRulesReload();
     const agents = agentsDAO.listForProxy();
     ipc.send({ type: 'agents.reload', data: agents });
   }});
@@ -147,8 +164,8 @@ export async function startServer(flags = {}) {
   const app = express();
   app.use(express.json());
 
-  const deps = { rulesDAO, requestLogDAO, approvalQueueDAO, agentsDAO, config, ipc, events, proxyManager,
-    crypto: { ...crypto, logKey } };
+  const deps = { rulesDAO, requestLogDAO, approvalQueueDAO, agentsDAO, policiesDAO, config, ipc, events,
+    proxyManager, sendAgentRulesReload, crypto: { ...crypto, logKey } };
 
   // Public: CA cert and status
   app.use('/api', statusRoutes(deps));
@@ -159,6 +176,7 @@ export async function startServer(flags = {}) {
   app.use('/api/logs', logsRoutes(deps));
   app.use('/api/approvals', approvalsRoutes(deps));
   app.use('/api/agents', agentsRoutes({ agentsDAO, ipc }));
+  app.use('/api/policies', policiesRoutes(deps));
   app.use('/api/events', eventsRoute(events));
 
   // Serve GUI static files if dist/ exists (production mode)
@@ -190,8 +208,7 @@ export async function startServer(flags = {}) {
       webhooks.reload(newConfig.webhooks || []);
       if (config.rules.source === 'file' && rulesDAO.reload) rulesDAO.reload();
       ipc.send({ type: 'config.update', data: { default_behavior: newConfig.default_behavior } });
-      const currentRules = await rulesDAO.list();
-      ipc.send({ type: 'rules.reload', data: currentRules });
+      await sendAgentRulesReload();
       const currentAgents = agentsDAO.listForProxy();
       ipc.send({ type: 'agents.reload', data: currentAgents });
       Object.assign(config, newConfig);

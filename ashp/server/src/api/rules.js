@@ -13,6 +13,7 @@
  * - `POST /api/rules` — create a rule (DB mode only)
  * - `PUT /api/rules/:id` — update a rule (DB mode only)
  * - `DELETE /api/rules/:id` — delete a rule (DB mode only)
+ * - `POST /api/rules/:id/move` — move a rule to a different policy (DB mode only)
  */
 import { Router } from 'express';
 
@@ -26,7 +27,7 @@ import { Router } from 'express';
  * @param {import('./events.js').EventBus} deps.events
  * @returns {import('express').Router}
  */
-export default function rulesRoutes({ rulesDAO, config, ipc, events }) {
+export default function rulesRoutes({ rulesDAO, config, ipc, events, sendAgentRulesReload }) {
   const r = Router();
 
   /**
@@ -93,6 +94,17 @@ export default function rulesRoutes({ rulesDAO, config, ipc, events }) {
       await sendRulesReload();
       events.emit('rules.changed', {});
       res.status(204).end();
+    } catch (e) { next(e); }
+  });
+
+  r.post('/:id/move', rejectIfReadOnly, async (req, res, next) => {
+    try {
+      const rule = await rulesDAO.moveToPolicy(Number(req.params.id), req.body.policy_id);
+      if (!rule) return res.status(404).json({ error: 'Rule not found' });
+      if (sendAgentRulesReload) await sendAgentRulesReload();
+      else await sendRulesReload();
+      events.emit('rules.changed', { rule_id: rule.id });
+      res.json(rule);
     } catch (e) { next(e); }
   });
 
