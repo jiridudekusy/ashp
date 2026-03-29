@@ -55,7 +55,7 @@ describe('SQLite connection factory', () => {
     db1.close();
     const db2 = createConnection(join(dir, 'second.db'), 'test-key');
     const { user_version } = db2.prepare('PRAGMA user_version').get();
-    assert.equal(user_version, 2);
+    assert.equal(user_version, 3);
     db2.close();
   });
 
@@ -90,7 +90,26 @@ describe('SQLite connection factory', () => {
 
     it('tracks schema version via user_version', () => {
       const { user_version } = db.prepare('PRAGMA user_version').get();
-      assert.equal(user_version, 2);
+      assert.equal(user_version, 3);
+    });
+
+    it('v3 creates policies tables and migrates rules', () => {
+      const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all().map(r => r.name);
+      assert.ok(tables.includes('policies'), 'policies table should exist');
+      assert.ok(tables.includes('policy_children'), 'policy_children table should exist');
+      assert.ok(tables.includes('agent_policies'), 'agent_policies table should exist');
+
+      // rules should have policy_id column
+      const cols = db.prepare('PRAGMA table_info(rules)').all().map(c => c.name);
+      assert.ok(cols.includes('policy_id'), 'rules should have policy_id column');
+
+      // default policy should exist
+      const defaultPolicy = db.prepare("SELECT * FROM policies WHERE name = 'default'").get();
+      assert.ok(defaultPolicy, 'default policy should exist');
+
+      // schema version should be 3
+      const { user_version } = db.prepare('PRAGMA user_version').get();
+      assert.equal(user_version, 3);
     });
   });
 });

@@ -7,6 +7,7 @@
  * 2. Versioned migrations keyed by `PRAGMA user_version`:
  *    - v0 -> v1: adds `agents` table; adds `hit_count`, `hit_count_today`, `hit_count_date` to `rules`.
  *    - v1 -> v2: adds `description` column to `agents`.
+ *    - v2 -> v3: adds `policies`, `policy_children`, `agent_policies` tables; adds `policy_id` FK to `rules`; creates default policy.
  *
  * Each versioned migration runs inside a transaction and bumps `user_version` atomically.
  */
@@ -99,6 +100,41 @@ export function createConnection(dbPath, encryptionKey) {
     db.transaction(() => {
       db.exec(`ALTER TABLE agents ADD COLUMN description TEXT NOT NULL DEFAULT '';`);
       db.pragma('user_version = 2');
+    })();
+  }
+
+  // Migration v2 -> v3: policies (hierarchical rule grouping)
+  if (user_version < 3) {
+    db.transaction(() => {
+      db.exec(`
+        CREATE TABLE policies (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL UNIQUE,
+          description TEXT DEFAULT '',
+          created_at DATETIME NOT NULL DEFAULT(datetime('now'))
+        );
+
+        CREATE TABLE policy_children (
+          parent_id INTEGER NOT NULL REFERENCES policies(id) ON DELETE CASCADE,
+          child_id INTEGER NOT NULL REFERENCES policies(id) ON DELETE CASCADE,
+          PRIMARY KEY (parent_id, child_id),
+          CHECK (parent_id != child_id)
+        );
+
+        CREATE TABLE agent_policies (
+          agent_id INTEGER NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+          policy_id INTEGER NOT NULL REFERENCES policies(id) ON DELETE CASCADE,
+          PRIMARY KEY (agent_id, policy_id)
+        );
+
+        ALTER TABLE rules ADD COLUMN policy_id INTEGER REFERENCES policies(id) ON DELETE SET NULL;
+      `);
+
+      // Create default policy and assign all existing rules to it
+      const info = db.prepare("INSERT INTO policies (name, description) VALUES ('default', 'Default policy for all rules')").run();
+      db.prepare('UPDATE rules SET policy_id = ?').run(info.lastInsertRowid);
+
+      db.pragma('user_version = 3');
     })();
   }
 
