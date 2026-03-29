@@ -11,7 +11,7 @@ import styles from './RuleForm.module.css';
 
 /** Default values for a new rule form. */
 const EMPTY = { name: '', url_pattern: '', methods: [], action: 'allow', priority: 0, enabled: true,
-  log_request_body: 'full', log_response_body: 'full', default_behavior: '' };
+  log_request_body: 'full', log_response_body: 'full', default_behavior: '', policy_id: null };
 
 /**
  * @param {Object} props
