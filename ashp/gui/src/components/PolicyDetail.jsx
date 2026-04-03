@@ -103,16 +103,20 @@ export default function PolicyDetail({
             <select
               className={styles.assignSelect}
               autoFocus
-              value=""
+              defaultValue=""
               onChange={e => {
-                if (e.target.value) {
-                  onAssignAgent(Number(e.target.value));
-                  setAssigning(false);
+                const val = e.target.value;
+                if (val) {
+                  onAssignAgent(Number(val));
                 }
+                setAssigning(false);
               }}
-              onBlur={() => setAssigning(false)}
+              onBlur={e => {
+                // Only close if no value was selected (blur without change)
+                if (!e.target.value) setAssigning(false);
+              }}
             >
-              <option value="">Select agent...</option>
+              <option value="" disabled>Select agent...</option>
               {unassignedAgents.map(a => (
                 <option key={a.id} value={a.id}>{a.name}</option>
               ))}
