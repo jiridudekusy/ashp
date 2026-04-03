@@ -290,6 +290,10 @@ Proxy (allow+log)     500     875     1.0ms    1.7ms    2.6ms    +0.7ms
 Proxy (deny)          500    1506     0.6ms    1.0ms    1.4ms    +0.3ms
 ```
 
+## Sandbox Networking
+
+When running sandbox containers on Docker internal networks (no internet access), they can't resolve external DNS. ASHP automatically runs a dnsmasq DNS forwarder bound to its container IP. Sandbox entrypoints dynamically resolve ASHP's IP and configure it as their nameserver — no static IPs needed in compose files.
+
 ## Volumes & Persistence
 
 When running in Docker, mount `/data` as a volume:
