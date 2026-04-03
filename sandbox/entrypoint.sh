@@ -1,6 +1,15 @@
 #!/bin/bash
 set -e
 
+# Resolve ASHP IP via Docker embedded DNS and set it as our DNS server.
+# This lets sandbox containers on internal networks resolve external domains
+# via ASHP's dnsmasq forwarder, without needing a static IP in compose.
+ASHP_IP=$(getent hosts ashp | awk '{print $1}')
+if [ -n "$ASHP_IP" ]; then
+  echo "nameserver $ASHP_IP" > /etc/resolv.conf
+  echo "DNS set to ASHP at $ASHP_IP"
+fi
+
 # Wait for ASHP and fetch CA cert for MITM trust
 echo "Waiting for ASHP CA certificate..."
 for i in $(seq 1 30); do
