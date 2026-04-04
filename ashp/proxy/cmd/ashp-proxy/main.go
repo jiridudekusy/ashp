@@ -12,7 +12,8 @@
 //   - queue: reject the request but log it for later review.
 //
 // Configuration can be hot-reloaded at runtime via IPC messages:
-// rules.reload, agents.reload, config.update, and approval.resolve.
+// rules.reload, agents.reload, config.update, approval.resolve, and
+// agents.ipmapping (for transparent proxy IP-to-agent resolution).
 package main
 
 import (
@@ -23,6 +24,8 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -52,9 +55,26 @@ func main() {
 	logKey := flag.String("log-key", "", "log encryption key hex (or env:VAR)")
 	defaultBehavior := flag.String("default-behavior", "deny", "deny|hold|queue")
 	holdTimeoutSec := flag.Int("hold-timeout", 60, "hold timeout in seconds for Mode B")
+	transparentListen := flag.String("transparent-listen", "", "transparent proxy bind address (empty=disabled)")
+	transparentPorts := flag.String("transparent-ports", "", "transparent ports: 443:tls,80,8443:tls")
 	flag.Parse()
 
 	holdTimeout = time.Duration(*holdTimeoutSec) * time.Second
+
+	var tPorts []mitm.TransparentPort
+	if *transparentPorts != "" {
+		for _, spec := range strings.Split(*transparentPorts, ",") {
+			spec = strings.TrimSpace(spec)
+			isTLS := strings.HasSuffix(spec, ":tls")
+			portStr := strings.TrimSuffix(spec, ":tls")
+			port, err := strconv.Atoi(portStr)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Invalid transparent port: %s\n", spec)
+				os.Exit(1)
+			}
+			tPorts = append(tPorts, mitm.TransparentPort{Port: port, TLS: isTLS})
+		}
+	}
 
 	caPassVal := resolveEnv(*caPass)
 	logKeyVal := resolveEnv(*logKey)
@@ -136,6 +156,13 @@ func main() {
 					json.Unmarshal(m.Data, &resolve)
 					ch <- (resolve.Action == "approve")
 				}
+			case "agents.ipmapping":
+				// Update the IP-to-agent mapping used by the transparent
+				// proxy to identify agents by source IP address.
+				var mapping map[string]string
+				if err := json.Unmarshal(m.Data, &mapping); err == nil {
+					authHandler.ReloadIPMap(mapping)
+				}
 			}
 		}),
 		ipc.WithOnReconnect(func() {
@@ -192,6 +219,13 @@ func main() {
 		os.Exit(1)
 	}
 	fmt.Fprintf(os.Stderr, "ASHP proxy listening on %s\n", ln.Addr())
+
+	if *transparentListen != "" && len(tPorts) > 0 {
+		if err := p.StartTransparent(*transparentListen, tPorts); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to start transparent proxy: %v\n", err)
+			os.Exit(1)
+		}
+	}
 
 	// Block until a termination signal is received, then shut down gracefully.
 	sig := make(chan os.Signal, 1)
