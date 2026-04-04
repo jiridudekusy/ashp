@@ -170,6 +170,10 @@ export class AgentsDAO {
   async authenticate(name, token) { throw new Error('Not implemented'); }
   /** @param {string} name - Agent name (not ID). */
   async incrementRequestCount(name) { throw new Error('Not implemented'); }
-  /** @returns {Array<{name: string, token_hash: string, enabled: boolean}>} Synchronous; returns data the Go proxy needs for auth checks. */
+  /** @returns {Array<{name: string, token_hash: string, enabled: boolean, ip_address: string|null}>} Synchronous; returns data the Go proxy needs for auth checks. */
   listForProxy() { throw new Error('Not implemented'); }
+  /** @param {number} id @param {string|null} ip @returns {Promise<void>} */
+  async registerIp(id, ip) { throw new Error('Not implemented'); }
+  /** @returns {Object<string, string>} IP address → agent name mapping (synchronous) */
+  getIPMapping() { throw new Error('Not implemented'); }
 }

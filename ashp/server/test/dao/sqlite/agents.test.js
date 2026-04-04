@@ -132,3 +132,32 @@ test('agent has ip_address column after migration', () => {
   assert.ok(row.sql.includes('ip_address'), 'agents table should have ip_address column');
   db.close();
 });
+
+test('registerIp stores IP address for agent', async () => {
+  const agent = await dao.create({ name: 'ip-test-agent' });
+  await dao.registerIp(agent.id, '172.18.0.5');
+  const fetched = await dao.get(agent.id);
+  assert.strictEqual(fetched.ip_address, '172.18.0.5');
+});
+
+test('registerIp clears IP when null', async () => {
+  const agent = await dao.create({ name: 'ip-clear-agent' });
+  await dao.registerIp(agent.id, '172.18.0.5');
+  await dao.registerIp(agent.id, null);
+  const fetched = await dao.get(agent.id);
+  assert.strictEqual(fetched.ip_address, null);
+});
+
+test('listForProxy includes ip_address', () => {
+  const agents = dao.listForProxy();
+  for (const a of agents) {
+    assert.ok('ip_address' in a, 'listForProxy should include ip_address');
+  }
+});
+
+test('getIPMapping returns IP-to-name map', async () => {
+  const agent = await dao.create({ name: 'mapping-agent' });
+  await dao.registerIp(agent.id, '10.0.0.1');
+  const mapping = dao.getIPMapping();
+  assert.strictEqual(mapping['10.0.0.1'], 'mapping-agent');
+});

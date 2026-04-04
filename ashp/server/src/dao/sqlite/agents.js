@@ -43,6 +43,7 @@ function deserialize(row) {
     enabled: !!row.enabled,
     request_count: row.request_count,
     created_at: row.created_at,
+    ip_address: row.ip_address || null,
   };
 }
 
@@ -61,8 +62,8 @@ export class SqliteAgentsDAO extends AgentsDAO {
     super();
     this.#db = db;
     this.#stmts = {
-      list: db.prepare('SELECT id, name, description, enabled, request_count, created_at FROM agents ORDER BY id'),
-      get: db.prepare('SELECT id, name, description, enabled, request_count, created_at FROM agents WHERE id = ?'),
+      list: db.prepare('SELECT id, name, description, enabled, request_count, created_at, ip_address FROM agents ORDER BY id'),
+      get: db.prepare('SELECT id, name, description, enabled, request_count, created_at, ip_address FROM agents WHERE id = ?'),
       getByName: db.prepare('SELECT * FROM agents WHERE name = ?'),
       insert: db.prepare('INSERT INTO agents (name, description, token_hash) VALUES (@name, @description, @token_hash)'),
       update: db.prepare('UPDATE agents SET name = @name, description = @description, enabled = @enabled WHERE id = @id'),
@@ -71,7 +72,9 @@ export class SqliteAgentsDAO extends AgentsDAO {
       deleteRequestLogs: db.prepare('DELETE FROM request_log WHERE agent_id = (SELECT name FROM agents WHERE id = ?)'),
       updateTokenHash: db.prepare('UPDATE agents SET token_hash = ? WHERE id = ?'),
       incrementRequestCount: db.prepare('UPDATE agents SET request_count = request_count + 1 WHERE name = ?'),
-      listForProxy: db.prepare('SELECT name, token_hash, enabled FROM agents'),
+      listForProxy: db.prepare('SELECT name, token_hash, enabled, ip_address FROM agents'),
+      updateIp: db.prepare('UPDATE agents SET ip_address = ? WHERE id = ?'),
+      ipMapping: db.prepare("SELECT ip_address, name FROM agents WHERE ip_address IS NOT NULL AND enabled = 1"),
     };
   }
 
@@ -187,6 +190,34 @@ export class SqliteAgentsDAO extends AgentsDAO {
       name: row.name,
       token_hash: row.token_hash,
       enabled: !!row.enabled,
+      ip_address: row.ip_address || null,
     }));
+  }
+
+  /**
+   * Stores or clears the source IP address for an agent. Used by transparent proxy
+   * mode to associate a container's IP with an agent identity.
+   *
+   * @param {number} id - Agent ID.
+   * @param {string|null} ip - IP address to register, or null to clear.
+   * @returns {Promise<void>}
+   */
+  async registerIp(id, ip) {
+    this.#stmts.updateIp.run(ip, id);
+  }
+
+  /**
+   * Returns a synchronous IP-address-to-agent-name mapping for all enabled agents
+   * with a registered IP. Used by the Go proxy for transparent mode auth.
+   *
+   * @returns {Object<string, string>} Map of IP address → agent name.
+   */
+  getIPMapping() {
+    const rows = this.#stmts.ipMapping.all();
+    const mapping = {};
+    for (const row of rows) {
+      mapping[row.ip_address] = row.name;
+    }
+    return mapping;
   }
 }
