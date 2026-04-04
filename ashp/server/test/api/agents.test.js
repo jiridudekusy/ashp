@@ -2,7 +2,7 @@ import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
 import { errorHandler } from '../../src/api/middleware.js';
-import agentsRoutes from '../../src/api/agents.js';
+import agentsRoutes, { createRegisterIpRoute } from '../../src/api/agents.js';
 
 // Mock DAO
 function mockAgentsDAO() {
@@ -29,6 +29,23 @@ function mockAgentsDAO() {
       return { token: 'new-rotated-token-456' };
     },
     listForProxy: () => [],
+    authenticate: async (name, token) => {
+      const a = agents.find(a => a.name === name && a.enabled);
+      if (!a) return null;
+      // In the mock, the token stored is the plaintext token itself
+      return (a.token === token) ? { id: a.id, name: a.name, enabled: a.enabled } : null;
+    },
+    registerIp: async (id, ip) => {
+      const a = agents.find(a => a.id === id);
+      if (a) a.ip_address = ip;
+    },
+    getIPMapping: () => {
+      const map = {};
+      for (const a of agents) {
+        if (a.ip_address) map[a.ip_address] = a.name;
+      }
+      return map;
+    },
     _agents: agents,
   };
 }
@@ -37,6 +54,8 @@ function makeApp(agentsDAO) {
   const app = express();
   app.use(express.json());
   const ipc = { send: () => {} };
+  // Register-IP route must be mounted before any auth middleware
+  app.post('/api/agents/register-ip', createRegisterIpRoute(agentsDAO, ipc));
   app.use('/api/agents', agentsRoutes({ agentsDAO, ipc }));
   app.use(errorHandler);
   return app;
@@ -107,5 +126,39 @@ describe('agents API', () => {
   it('PUT /api/agents/:id returns 404 for nonexistent', async () => {
     const res = await req(app, 'PUT', '/api/agents/999', { name: 'x' });
     assert.equal(res.status, 404);
+  });
+
+  it('POST /api/agents/register-ip registers IP with valid credentials', async () => {
+    // Create an agent first
+    const created = await req(app, 'POST', '/api/agents', { name: 'ip-reg-test-agent' });
+    assert.equal(created.status, 201);
+    const { token, id } = created.body;
+
+    // Register IP using agent credentials (no Basic Auth)
+    const res = await req(app, 'POST', '/api/agents/register-ip', {
+      name: 'ip-reg-test-agent',
+      token,
+      ip_address: '172.18.0.10',
+    });
+    assert.equal(res.status, 200);
+    assert.equal(res.body.ok, true);
+
+    // Verify the IP was stored
+    assert.equal(dao._agents.find(a => a.id === id)?.ip_address, '172.18.0.10');
+  });
+
+  it('POST /api/agents/register-ip rejects invalid token', async () => {
+    await req(app, 'POST', '/api/agents', { name: 'ip-reg-test-agent' });
+    const res = await req(app, 'POST', '/api/agents/register-ip', {
+      name: 'ip-reg-test-agent',
+      token: 'wrong-token',
+      ip_address: '172.18.0.10',
+    });
+    assert.equal(res.status, 401);
+  });
+
+  it('POST /api/agents/register-ip rejects missing fields', async () => {
+    const res = await req(app, 'POST', '/api/agents/register-ip', { name: 'test' });
+    assert.equal(res.status, 400);
   });
 });

@@ -36,7 +36,7 @@ import { basicAuth, errorHandler } from './api/middleware.js';
 import rulesRoutes from './api/rules.js';
 import logsRoutes from './api/logs.js';
 import approvalsRoutes from './api/approvals.js';
-import agentsRoutes from './api/agents.js';
+import agentsRoutes, { createRegisterIpRoute } from './api/agents.js';
 import policiesRoutes from './api/policies.js';
 import statusRoutes from './api/status.js';
 import { SqliteAgentsDAO } from './dao/sqlite/agents.js';
@@ -169,6 +169,10 @@ export async function startServer(flags = {}) {
 
   // Public: CA cert and status
   app.use('/api', statusRoutes(deps));
+
+  // Agent-authenticated route: mounted before Basic Auth so sandbox containers
+  // can register their IP using only agent credentials (name + token).
+  app.post('/api/agents/register-ip', express.json(), createRegisterIpRoute(agentsDAO, ipc));
 
   // Protected routes (require Basic Auth)
   app.use('/api', basicAuth(config.management.auth));
