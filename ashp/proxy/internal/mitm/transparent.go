@@ -276,7 +276,7 @@ func (p *Proxy) handleTransparentHTTP(w http.ResponseWriter, req *http.Request) 
 	case "deny", "queue":
 		p.sendIPC("request.blocked", map[string]interface{}{
 			"agent_id": agentID, "url": fullURL, "method": req.Method,
-			"decision": decision.Action, "mode": "transparent",
+			"decision": "denied", "mode": "transparent",
 		})
 		http.Error(w, "Blocked by ASHP", http.StatusForbidden)
 	case "allow":
@@ -291,7 +291,7 @@ func (p *Proxy) handleTransparentHTTP(w http.ResponseWriter, req *http.Request) 
 func (p *Proxy) transparentDeny(tlsConn *tls.Conn, req *http.Request, agentID, fullURL string, decision RequestDecision) {
 	p.sendIPC("request.blocked", map[string]interface{}{
 		"agent_id": agentID, "url": fullURL, "method": req.Method,
-		"decision": decision.Action, "mode": "transparent",
+		"decision": "denied", "mode": "transparent",
 	})
 	resp := &http.Response{
 		StatusCode: http.StatusForbidden,
