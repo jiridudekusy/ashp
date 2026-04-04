@@ -45,6 +45,35 @@ docker run -d --name ashp \
   jiridudkusy/ashp
 ```
 
+### Transparent Proxy Mode
+
+ASHP can operate as a transparent proxy where sandbox containers don't need `HTTP_PROXY`/`HTTPS_PROXY` env vars. Traffic is intercepted via DNS — dnsmasq resolves all external domains to ASHP's IP, and ASHP reads TLS SNI to determine the target.
+
+Enable in `ashp.json`:
+```json
+{
+  "transparent": {
+    "enabled": true,
+    "listen": "0.0.0.0",
+    "ports": [
+      { "port": 443, "tls": true },
+      { "port": 80, "tls": false }
+    ]
+  }
+}
+```
+
+Set `ASHP_TRANSPARENT=true` env var on the ASHP container for dnsmasq catch-all.
+
+Sandbox containers register their IP via:
+```bash
+curl -X POST http://ashp:3000/api/agents/register-ip \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"agent-name","token":"agent-token","ip_address":"172.18.0.x"}'
+```
+
+Both modes (explicit proxy on :8080 and transparent on :80/:443) can run simultaneously.
+
 ## Architecture
 
 ```
@@ -199,6 +228,7 @@ All API endpoints (except status and CA cert) require `Authorization: Basic <bas
 | `PUT` | `/api/agents/:id` | Update agent |
 | `DELETE` | `/api/agents/:id` | Delete agent |
 | `POST` | `/api/agents/:id/rotate-token` | Rotate token |
+| `POST` | `/api/agents/register-ip` | Register agent IP for transparent proxy (agent token auth) |
 
 ### Logs
 | Method | Path | Description |

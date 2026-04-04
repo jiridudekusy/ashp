@@ -20,6 +20,7 @@ make test-server        # Node tests: cd server && node --test 'test/**/*.test.j
 make test-gui           # GUI tests: cd gui && npx vitest run
 make test-e2e           # E2E tests (builds proxy first): cd server && node --test '../test/e2e/*.test.js'
 make bench              # Performance benchmark
+make test-docker        # Docker integration tests
 ```
 
 Single test file: `cd server && node --test test/dao/sqlite/rules.test.js`
@@ -35,11 +36,12 @@ Docker prod build: `cd ashp && docker build -t ashp:latest .`
 4. Node spawns Go proxy binary as child process
 5. Go connects to socket, loads rules + agents from Node
 6. Node starts Express on `:3000` (API + static GUI), Go proxy on `:8080`
+7. If `transparent.enabled`, Go also listens on configured transparent ports (`:80`/`:443`); dnsmasq catch-all activated when `ASHP_TRANSPARENT=true`
 
 ### IPC Protocol (Unix Socket)
 Newline-delimited JSON frames with `msg_id` (UUID) and `ref` for request-response correlation.
 
-- **Node → Go:** `rules.reload` (per-agent rule map), `agents.reload`, `config.update`, `approval.resolve` (ref=ipc_msg_id)
+- **Node → Go:** `rules.reload` (per-agent rule map), `agents.reload`, `agents.ipmapping` (IP→agent mapping for transparent proxy), `config.update`, `approval.resolve` (ref=ipc_msg_id)
 - **Go → Node:** `request.logged`, `request.blocked`, `approval.needed` (msg_id used for correlation)
 
 The approval flow is the critical path: Go holds the HTTP connection open, sends `approval.needed` with a `msg_id`, Node stores it as `ipc_msg_id` in approval_queue, user resolves via GUI, Node sends `approval.resolve` with `ref` matching the original `msg_id`.
@@ -76,6 +78,21 @@ Abstract interfaces in `server/src/dao/interfaces.js`, SQLite implementations in
 ## Key Config
 
 `ashp.json` with `env:VAR_NAME` substitution. Required env vars: `ASHP_DB_KEY`, `ASHP_LOG_KEY` (64-char hex), `ASHP_CA_KEY`. Default behavior options: `deny`, `hold`, `queue`.
+
+Transparent proxy config block (optional):
+```json
+{
+  "transparent": {
+    "enabled": true,
+    "listen": "0.0.0.0",
+    "ports": [
+      { "port": 443, "tls": true },
+      { "port": 80, "tls": false }
+    ]
+  }
+}
+```
+Set `ASHP_TRANSPARENT=true` env var to enable dnsmasq catch-all. Agents register their IP via `POST /api/agents/register-ip` (authenticated with agent token).
 
 ## Docker
 
