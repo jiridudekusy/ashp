@@ -25,6 +25,8 @@ function setup() {
     removeChild: async (parentId, childId) => {},
     assignToAgent: async (policyId, agentId) => {},
     unassignFromAgent: async (policyId, agentId) => {},
+    getPolicyAgents: async (policyId) => [],
+    getChildren: async (policyId) => [],
   };
 
   mockRulesDAO = {
