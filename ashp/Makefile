@@ -1,4 +1,4 @@
-.PHONY: build build-proxy build-gui install install-server install-gui dev dev-stop dev-restart dev-status dev-logs test test-server test-proxy test-gui test-e2e bench clean
+.PHONY: build build-proxy build-gui install install-server install-gui dev dev-stop dev-restart dev-status dev-logs test test-server test-proxy test-gui test-e2e test-docker bench clean
 
 build: build-proxy build-gui
 
@@ -44,6 +44,9 @@ test-gui:
 
 test-e2e: build-proxy
 	cd server && node --test '../test/e2e/*.test.js'
+
+test-docker:
+	bash ../test/docker/test-transparent.sh
 
 bench: build-proxy
 	node test/bench/proxy-bench.js
