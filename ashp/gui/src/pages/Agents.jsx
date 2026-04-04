@@ -144,6 +144,15 @@ export default function Agents({ api }) {
             <input className={styles.input} value={description} onChange={e => setDescription(e.target.value)}
               placeholder="What this agent is used for" />
           </div>
+          {editing !== 'new' && editing?.ip_address && (
+            <div className={styles.fieldGroup}>
+              <label className={styles.label}>IP Address</label>
+              <div className={styles.ipReadonly}>
+                <code>{editing.ip_address}</code>
+                <button type="button" className={styles.clearIpBtn} onClick={() => { handleClearIP(editing); closeModal(); }}>Clear</button>
+              </div>
+            </div>
+          )}
           <div className={styles.formActions}>
             <button className={styles.cancelBtn} type="button" onClick={closeModal}>Cancel</button>
             <button className={styles.submitBtn} type="submit">{editing === 'new' ? 'Create' : 'Save'}</button>
