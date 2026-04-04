@@ -138,5 +138,16 @@ export function createConnection(dbPath, encryptionKey) {
     })();
   }
 
+  // Migration v3 -> v4: ip_address on agents (transparent proxy mode); mode on request_log
+  if (user_version < 4) {
+    db.transaction(() => {
+      db.exec(`
+        ALTER TABLE agents ADD COLUMN ip_address TEXT DEFAULT NULL;
+        ALTER TABLE request_log ADD COLUMN mode TEXT DEFAULT 'proxy';
+      `);
+      db.pragma('user_version = 4');
+    })();
+  }
+
   return db;
 }

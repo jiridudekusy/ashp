@@ -1,4 +1,4 @@
-import { describe, it, beforeEach, afterEach } from 'node:test';
+import { describe, it, test, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { createConnection } from '../../../src/dao/sqlite/connection.js';
 import { SqliteAgentsDAO } from '../../../src/dao/sqlite/agents.js';
@@ -124,4 +124,11 @@ describe('SqliteAgentsDAO', () => {
     await dao.create({ name: 'agent1' });
     await assert.rejects(() => dao.create({ name: 'agent1' }));
   });
+});
+
+test('agent has ip_address column after migration', () => {
+  const db = createConnection(':memory:', 'test-key');
+  const row = db.prepare("SELECT sql FROM sqlite_master WHERE name = 'agents'").get();
+  assert.ok(row.sql.includes('ip_address'), 'agents table should have ip_address column');
+  db.close();
 });
