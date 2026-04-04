@@ -19,7 +19,7 @@ function formatRelativeTime(timestamp) {
 }
 
 export default function ApprovalCard({ approval, selected, onClick, timeoutSeconds }) {
-  const method = approval.method || 'POST';
+  const method = approval.method || 'UNKNOWN';
   const url = approval.suggested_pattern || approval.url || 'Unknown';
   const elapsed = (Date.now() - new Date(approval.created_at).getTime()) / 1000;
   const timeout = timeoutSeconds || 30;

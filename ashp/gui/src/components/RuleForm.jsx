@@ -42,6 +42,11 @@ export default function RuleForm({ open, rule, onSave, onCancel }) {
         <div className={styles.fieldGroup}>
           <label className={styles.label}>Methods</label>
           <div className={styles.methodsGrid}>
+            <label className={styles.methodCheckbox}>
+              <input type="checkbox" checked={form.methods.length === 0}
+                onChange={() => set('methods', [])} />
+              ALL
+            </label>
             {['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'].map(m => (
               <label key={m} className={styles.methodCheckbox}>
                 <input type="checkbox" checked={form.methods.includes(m)}
@@ -50,7 +55,7 @@ export default function RuleForm({ open, rule, onSave, onCancel }) {
               </label>
             ))}
           </div>
-          <span className={styles.hint}>{form.methods.length === 0 ? 'All methods (no filter)' : `${form.methods.length} selected`}</span>
+          <span className={styles.hint}>{form.methods.length === 0 ? 'All methods' : `${form.methods.length} selected`}</span>
         </div>
         <div className={styles.row}>
           <div className={styles.fieldGroup}>

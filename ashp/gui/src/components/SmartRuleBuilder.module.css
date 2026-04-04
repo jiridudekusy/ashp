@@ -83,6 +83,27 @@
   background: var(--color-bg-card);
 }
 
+.methodsGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+
+.methodCheckbox {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.hint {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  margin-top: 4px;
+}
+
 .actions {
   display: flex;
   gap: 8px;

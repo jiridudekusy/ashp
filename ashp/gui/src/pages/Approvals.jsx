@@ -48,7 +48,7 @@ function approvalToEntry(approval) {
   if (!approval) return null;
   return {
     id: approval.request_log_id,
-    method: approval.method || 'POST',
+    method: approval.method || 'UNKNOWN',
     url: approval.suggested_pattern || approval.url || 'Unknown',
     decision: 'held',
     timestamp: approval.created_at,
@@ -128,7 +128,7 @@ export default function Approvals({ api, events }) {
     setMatchSuggestion(null);
     if (!selected) return;
     const url = selected.url || selected.suggested_pattern || '';
-    const method = selected.method || 'GET';
+    const method = selected.method || 'UNKNOWN';
     if (!url) return;
     api.matchPolicies(url, method)
       .then(result => {
@@ -262,7 +262,7 @@ export default function Approvals({ api, events }) {
             <div key={r.id || i} className={styles.resolvedRow}>
               <div className={styles.resolvedTop}>
                 <span className={styles.approvalUrl}>
-                  {r.method || 'POST'} {r.suggested_pattern || r.url || 'Unknown'}
+                  {r.method || 'UNKNOWN'} {r.suggested_pattern || r.url || 'Unknown'}
                 </span>
                 <Badge variant={r.action === 'approve' ? 'allowed' : 'denied'}>
                   {r.action === 'approve' ? 'approved' : 'rejected'}

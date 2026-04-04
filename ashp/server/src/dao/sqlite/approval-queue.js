@@ -29,7 +29,9 @@ export class SqliteApprovalQueueDAO extends ApprovalQueueDAO {
       insert: db.prepare(`INSERT INTO approval_queue (request_log_id,ipc_msg_id,suggested_pattern,
         suggested_methods) VALUES (@request_log_id,@ipc_msg_id,@suggested_pattern,@suggested_methods)`),
       getById: db.prepare('SELECT * FROM approval_queue WHERE id = ?'),
-      listPending: db.prepare("SELECT * FROM approval_queue WHERE status='pending' ORDER BY created_at ASC"),
+      listPending: db.prepare(`SELECT a.*, r.method, r.url
+        FROM approval_queue a LEFT JOIN request_log r ON a.request_log_id = r.id
+        WHERE a.status='pending' ORDER BY a.created_at ASC`),
       resolve: db.prepare(`UPDATE approval_queue SET status=@status,
         resolved_at=datetime('now'), resolved_by=@resolved_by, create_rule=@create_rule
         WHERE id=@id AND status='pending'`),

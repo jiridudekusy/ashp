@@ -58,7 +58,7 @@ export function generatePatterns(url) {
  */
 export function SmartRuleBuilder({ open, onClose, onSubmit, entry, policies }) {
   const [selectedPattern, setSelectedPattern] = useState('');
-  const [method, setMethod] = useState('');
+  const [methods, setMethods] = useState([]);
   const [action, setAction] = useState('allow');
   const [policy, setPolicy] = useState(null);
 
@@ -67,7 +67,7 @@ export function SmartRuleBuilder({ open, onClose, onSubmit, entry, policies }) {
   useEffect(() => {
     if (entry) {
       setSelectedPattern(patterns[0]?.pattern || '');
-      setMethod(entry.method || 'ALL');
+      setMethods(entry.method ? [entry.method] : []);
       setAction('allow');
     }
   }, [entry?.url]);
@@ -84,7 +84,7 @@ export function SmartRuleBuilder({ open, onClose, onSubmit, entry, policies }) {
   const handleSubmit = () => {
     const rule = {
       url_pattern: selectedPattern,
-      methods: method === 'ALL' ? [] : [method],
+      methods,
       action,
       name: `Rule for ${selectedPattern}`,
       enabled: true,
@@ -115,14 +115,25 @@ export function SmartRuleBuilder({ open, onClose, onSubmit, entry, policies }) {
           ))}
         </div>
       </div>
-      <div className={styles.row}>
-        <div className={styles.fieldGroup}>
-          <div className={styles.label}>Method</div>
-          <select className={styles.select} value={method} onChange={e => setMethod(e.target.value)}>
-            <option value={entry?.method}>{entry?.method}</option>
-            <option value="ALL">ALL</option>
-          </select>
+      <div className={styles.section}>
+        <div className={styles.label}>Methods</div>
+        <div className={styles.methodsGrid}>
+          <label className={styles.methodCheckbox}>
+            <input type="checkbox" checked={methods.length === 0}
+              onChange={() => setMethods([])} />
+            ALL
+          </label>
+          {['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'].map(m => (
+            <label key={m} className={styles.methodCheckbox}>
+              <input type="checkbox" checked={methods.includes(m)}
+                onChange={e => setMethods(e.target.checked ? [...methods, m] : methods.filter(x => x !== m))} />
+              {m}
+            </label>
+          ))}
         </div>
+        <span className={styles.hint}>{methods.length === 0 ? 'All methods' : `${methods.length} selected`}</span>
+      </div>
+      <div className={styles.row}>
         <div className={styles.fieldGroup}>
           <div className={styles.label}>Action</div>
           <select className={styles.select} value={action} onChange={e => setAction(e.target.value)}>

@@ -132,7 +132,7 @@ func (e *Evaluator) Match(agentID, url, method string) *Rule {
 		if len(cr.Methods) > 0 {
 			found := false
 			for _, m := range cr.Methods {
-				if m == method {
+				if m == "*" || m == method {
 					found = true
 					break
 				}
