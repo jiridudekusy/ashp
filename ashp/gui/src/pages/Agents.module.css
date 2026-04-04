@@ -54,8 +54,8 @@
 .dismissBtn:hover { color: var(--color-text); }
 
 .table { background: var(--color-bg-card); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; }
-.tableHeader { display: grid; grid-template-columns: 1fr 2fr 80px 80px 90px 1fr 180px; padding: 10px 14px; background: var(--color-bg-page); border-bottom: 1px solid var(--color-border); font-weight: 500; color: var(--color-text-secondary); font-size: 11px; }
-.tableRow { display: grid; grid-template-columns: 1fr 2fr 80px 80px 90px 1fr 180px; padding: 10px 14px; border-bottom: 1px solid var(--color-border-light); align-items: center; font-size: 12px; color: var(--color-text); }
+.tableHeader { display: grid; grid-template-columns: 1fr 2fr 80px 80px 90px 130px 1fr 180px; padding: 10px 14px; background: var(--color-bg-page); border-bottom: 1px solid var(--color-border); font-weight: 500; color: var(--color-text-secondary); font-size: 11px; }
+.tableRow { display: grid; grid-template-columns: 1fr 2fr 80px 80px 90px 130px 1fr 180px; padding: 10px 14px; border-bottom: 1px solid var(--color-border-light); align-items: center; font-size: 12px; color: var(--color-text); }
 .tableRowDisabled { composes: tableRow; opacity: 0.5; }
 
 .cellDesc { color: var(--color-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -71,6 +71,43 @@
 .dotGrey { composes: dot; background: var(--color-text-muted); }
 
 .empty { padding: 40px; text-align: center; color: var(--color-text-muted); font-size: 13px; }
+
+.cellIp {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.ipCode {
+  font-family: monospace;
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ipEmpty {
+  color: var(--color-text-muted);
+}
+
+.clearIpBtn {
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 1px 6px;
+  font-size: 10px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.clearIpBtn:hover {
+  border-color: var(--color-deny);
+  color: var(--color-deny);
+}
 
 /* Policy chips in agent table */
 .cellPolicies {

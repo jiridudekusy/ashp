@@ -89,6 +89,15 @@ export default function Dashboard({ api, events }) {
             </Badge>
           </div>
         </div>
+        {status.transparent?.enabled && (
+          <div className={styles.card}>
+            <div className={styles.cardLabel}>Transparent Proxy</div>
+            <div className={styles.cardValue}>Active</div>
+            <div className={styles.cardSub}>
+              {status.transparent.ports.map(p => `${p.port}${p.tls ? ' (TLS)' : ''}`).join(', ')}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className={styles.feed}>

@@ -100,6 +100,12 @@ export default function Agents({ api }) {
     setRotatedToken({ name: agent.name, token: result.token });
   };
 
+  const handleClearIP = async (agent) => {
+    if (!confirm(`Clear IP address for agent "${agent.name}"? The agent will no longer be authenticated by IP.`)) return;
+    await api.updateAgent(agent.id, { ip_address: null });
+    load();
+  };
+
   const handleAssignPolicy = async (agentId, policyId) => {
     if (!policyId) return;
     await api.assignPolicyAgent(policyId, agentId);
@@ -166,7 +172,7 @@ export default function Agents({ api }) {
       ) : (
         <div className={styles.table}>
           <div className={styles.tableHeader}>
-            <span>Name</span><span>Description</span><span>Requests</span><span>Status</span><span>Created</span><span>Policies</span><span></span>
+            <span>Name</span><span>Description</span><span>Requests</span><span>Status</span><span>Created</span><span>IP Address</span><span>Policies</span><span></span>
           </div>
           {agents.map(a => {
             const assigned = agentPolicies[a.id] || [];
@@ -181,6 +187,23 @@ export default function Agents({ api }) {
                   {a.enabled ? 'Active' : 'Disabled'}
                 </span>
                 <span>{new Date(a.created_at).toLocaleDateString()}</span>
+                {/* IP Address column */}
+                <span className={styles.cellIp}>
+                  {a.ip_address ? (
+                    <>
+                      <code className={styles.ipCode}>{a.ip_address}</code>
+                      <button
+                        className={styles.clearIpBtn}
+                        onClick={() => handleClearIP(a)}
+                        title="Clear IP address"
+                      >
+                        Clear
+                      </button>
+                    </>
+                  ) : (
+                    <span className={styles.ipEmpty}>—</span>
+                  )}
+                </span>
                 {/* Policies column */}
                 <span className={styles.cellPolicies}>
                   {assigned.map(p => (

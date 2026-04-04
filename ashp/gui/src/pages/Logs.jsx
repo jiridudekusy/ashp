@@ -151,6 +151,9 @@ export default function Logs({ api, events }) {
               <Badge variant={log.decision} />
               <span className={styles.logMethod}>{log.method}</span>
               <span className={styles.logUrl} title={log.url}>{log.url}</span>
+              {log.mode && log.mode !== 'proxy' && (
+                <span className={styles.logMode}>{log.mode}</span>
+              )}
               <span className={styles.logTime}>{formatTime(log.timestamp)}</span>
             </div>
           ))
