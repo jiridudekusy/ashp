@@ -58,15 +58,16 @@ type Config struct {
 // evaluation, body logging, and IPC reporting. It is created with [New] and
 // started with [Start].
 type Proxy struct {
-	gp              *goproxy.ProxyHttpServer
-	evaluator       *rules.Evaluator
-	auth            *auth.Handler
-	logWriter       *logger.Writer
-	ipc             *ipc.Client
-	ln              net.Listener
-	ca              tls.Certificate
-	defaultBehavior string
-	holdRequest     func(msg ipc.Message) (approved bool)
+	gp                    *goproxy.ProxyHttpServer
+	evaluator             *rules.Evaluator
+	auth                  *auth.Handler
+	logWriter             *logger.Writer
+	ipc                   *ipc.Client
+	ln                    net.Listener
+	ca                    tls.Certificate
+	defaultBehavior       string
+	holdRequest           func(msg ipc.Message) (approved bool)
+	transparentListeners  []net.Listener
 }
 
 // RequestContext holds the information needed to evaluate a proxied request.
@@ -415,10 +416,21 @@ func (p *Proxy) captureBody(body io.ReadCloser, policy string) (string, []byte) 
 	return ref, data
 }
 
-// Stop shuts down the proxy listener and closes the encrypted log writer.
+// StartTransparent launches transparent proxy listeners on the specified
+// ports. TLS ports perform MITM via SNI extraction and dynamic certificate
+// signing; plain ports forward HTTP requests directly. Call after [Proxy.Start].
+func (p *Proxy) StartTransparent(listenAddr string, ports []TransparentPort) error {
+	return p.startTransparentListeners(listenAddr, ports)
+}
+
+// Stop shuts down the proxy listener, all transparent listeners, and closes
+// the encrypted log writer.
 func (p *Proxy) Stop() {
 	if p.ln != nil {
 		p.ln.Close()
+	}
+	for _, ln := range p.transparentListeners {
+		ln.Close()
 	}
 	if p.logWriter != nil {
 		p.logWriter.Close()
