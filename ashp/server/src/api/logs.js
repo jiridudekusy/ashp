@@ -3,7 +3,7 @@
  * @description Request log query and encrypted body streaming routes.
  *
  * Routes:
- * - `GET /api/logs` — query log entries with filters (method, decision, url, date range, agent, pagination)
+ * - `GET /api/logs` — query log entries with filters (method, decision, url, date range, agent, mode, pagination)
  * - `GET /api/logs/:id` — get a single log entry by ID
  * - `GET /api/logs/:id/request-body` — decrypt and stream the request body
  * - `GET /api/logs/:id/response-body` — decrypt and stream the response body
@@ -33,7 +33,7 @@ export default function logsRoutes({ requestLogDAO, crypto, config }) {
   r.get('/', async (req, res, next) => {
     try {
       const filters = {};
-      for (const k of ['method', 'decision', 'url', 'from', 'to', 'agent_id']) {
+      for (const k of ['method', 'decision', 'url', 'from', 'to', 'agent_id', 'mode']) {
         if (req.query[k]) filters[k] = req.query[k];
       }
       filters.limit = parseInt(req.query.limit) || 50;

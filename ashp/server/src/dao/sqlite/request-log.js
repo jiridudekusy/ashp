@@ -25,9 +25,9 @@ export class SqliteRequestLogDAO extends RequestLogDAO {
     this.#stmts = {
       insert: db.prepare(`INSERT INTO request_log (method,url,request_headers,
         request_body_ref,response_status,response_headers,response_body_ref,
-        duration_ms,rule_id,decision,agent_id) VALUES (@method,@url,
+        duration_ms,rule_id,decision,agent_id,mode) VALUES (@method,@url,
         @request_headers,@request_body_ref,@response_status,@response_headers,
-        @response_body_ref,@duration_ms,@rule_id,@decision,@agent_id)`),
+        @response_body_ref,@duration_ms,@rule_id,@decision,@agent_id,@mode)`),
       getById: db.prepare('SELECT * FROM request_log WHERE id = ?'),
       cleanup: db.prepare('DELETE FROM request_log WHERE timestamp < ?'),
     };
@@ -49,6 +49,7 @@ export class SqliteRequestLogDAO extends RequestLogDAO {
       duration_ms: entry.duration_ms ?? null,
       rule_id: entry.rule_id ?? null,
       decision: entry.decision, agent_id: entry.agent_id ?? null,
+      mode: entry.mode ?? 'proxy',
     });
     return this.getById(info.lastInsertRowid);
   }
@@ -67,6 +68,7 @@ export class SqliteRequestLogDAO extends RequestLogDAO {
    * @param {string} [filters.from] - Minimum timestamp (inclusive).
    * @param {string} [filters.to] - Maximum timestamp (inclusive).
    * @param {string} [filters.agent_id] - Exact agent_id match.
+   * @param {string} [filters.mode] - Exact mode match (proxy/transparent).
    * @param {number} [filters.limit=50] - Maximum rows to return.
    * @param {number} [filters.offset=0] - Number of rows to skip.
    * @returns {Promise<import('../interfaces.js').RequestLogEntry[]>} Entries ordered by ID descending (newest first).
@@ -79,6 +81,7 @@ export class SqliteRequestLogDAO extends RequestLogDAO {
     if (filters.from)     { conds.push('timestamp>=@from');   params.from = filters.from; }
     if (filters.to)       { conds.push('timestamp<=@to');     params.to = filters.to; }
     if (filters.agent_id) { conds.push('agent_id=@agent_id'); params.agent_id = filters.agent_id; }
+    if (filters.mode)     { conds.push('mode=@mode');         params.mode = filters.mode; }
     const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
     return this.#db.prepare(
       `SELECT * FROM request_log ${where} ORDER BY id DESC LIMIT @limit OFFSET @offset`
