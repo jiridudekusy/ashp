@@ -55,7 +55,7 @@ describe('SQLite connection factory', () => {
     db1.close();
     const db2 = createConnection(join(dir, 'second.db'), 'test-key');
     const { user_version } = db2.prepare('PRAGMA user_version').get();
-    assert.equal(user_version, 3);
+    assert.equal(user_version, 4);
     db2.close();
   });
 
@@ -90,7 +90,7 @@ describe('SQLite connection factory', () => {
 
     it('tracks schema version via user_version', () => {
       const { user_version } = db.prepare('PRAGMA user_version').get();
-      assert.equal(user_version, 3);
+      assert.equal(user_version, 4);
     });
 
     it('v3 creates policies tables and migrates rules', () => {
@@ -107,9 +107,9 @@ describe('SQLite connection factory', () => {
       const defaultPolicy = db.prepare("SELECT * FROM policies WHERE name = 'default'").get();
       assert.ok(defaultPolicy, 'default policy should exist');
 
-      // schema version should be 3
+      // schema version should be at least 3 (v4 adds ip_address + mode columns)
       const { user_version } = db.prepare('PRAGMA user_version').get();
-      assert.equal(user_version, 3);
+      assert.ok(user_version >= 3, `expected user_version >= 3, got ${user_version}`);
     });
   });
 });
