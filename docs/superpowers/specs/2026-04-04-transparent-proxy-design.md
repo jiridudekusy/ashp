@@ -277,11 +277,35 @@ When a request arrives on a transparent listener from an IP not registered to an
 - `test/api/agents.test.js` — `register-ip` endpoint (valid agent, invalid token, missing fields)
 - `test/dao/sqlite/agents.test.js` — `ip_address` column, query by IP
 
-### E2E Test
+### E2E Tests (local, no Docker)
 
-- Start ASHP with `transparent.enabled: true`
-- Sandbox container without `HTTP_PROXY` makes HTTPS request
-- Verify: request intercepted, rules evaluated, logged with correct agent and `mode: "transparent"`
+Extend existing `test/e2e/` suite — start ASHP (proxy + server) locally with transparent mode enabled:
+
+- Transparent HTTPS: connect to transparent TLS port, send request with SNI → verify MITM, rule eval, logged with `mode: "transparent"`
+- Transparent HTTP: connect to transparent plain port, send request with Host header → verify forwarding and logging
+- IP auth: register IP via API, make request from that IP → verify correct agent assigned
+- Unknown IP: request from unregistered IP → verify default behavior (deny/hold/queue)
+
+### Docker Integration Tests
+
+Full Docker compose stack tests (`test/docker/`) — spin up the `run/docker-compose.yml` stack and verify both modes work:
+
+1. **Build and start stack:** `docker compose -f run/docker-compose.yml up -d`
+2. **Wait for readiness:** poll ASHP `/api/status` until healthy
+3. **Test sandbox-proxy (explicit mode):**
+   - `docker exec sandbox-proxy curl -x http://agent:token@ashp:8080 https://httpbin.org/get`
+   - Verify request logged with `mode: "proxy"` via ASHP API
+4. **Test sandbox-transparent (transparent mode):**
+   - `docker exec sandbox-transparent curl https://httpbin.org/get` (no proxy env vars)
+   - Verify request logged with `mode: "transparent"` and correct agent via ASHP API
+5. **Test IP registration:**
+   - Verify agent has `ip_address` set via `GET /api/agents/:id`
+6. **Test unknown IP:**
+   - Make request from ASHP container itself (not a registered agent IP) to transparent port
+   - Verify default behavior applied
+7. **Teardown:** `docker compose -f run/docker-compose.yml down`
+
+These tests require Docker and are run separately from `make test-e2e` (e.g., `make test-docker`).
 
 ## 10. Files to Modify
 
@@ -302,4 +326,6 @@ When a request arrives on a transparent listener from an IP not registered to an
 | `sandbox/entrypoint.sh` | IP registration step |
 | `run/docker-compose.yml` | Two sandbox containers (proxy + transparent), ASHP transparent env |
 | `ashp/Dockerfile` | `EXPOSE 80 443` |
+| `test/docker/` | **New** — Docker integration test scripts for both proxy modes |
+| `ashp/Makefile` | Add `test-docker` target |
 | GUI components | Agent detail (IP field), dashboard (transparent indicator), log table (mode column) |
