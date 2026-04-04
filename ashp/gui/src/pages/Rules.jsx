@@ -8,7 +8,7 @@
  * When rules_source is 'file', the page enters read-only mode:
  * mutation buttons are hidden and a banner is shown.
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import PolicyTree from '../components/PolicyTree';
 import PolicyDetail from '../components/PolicyDetail';
 import PolicyForm from '../components/PolicyForm';
@@ -50,7 +50,10 @@ export default function Rules({ api }) {
   const [readOnly, setReadOnly] = useState(false);
   const [testResult, setTestResult] = useState(null);
 
-  const reload = async () => {
+  const selectedRef = useRef(selected);
+  selectedRef.current = selected;
+
+  const reload = useCallback(async () => {
     const [p, a, r, s] = await Promise.all([
       api.getPolicies(), api.getAgents(), api.getRules(), api.getStatus(),
     ]);
@@ -58,11 +61,12 @@ export default function Rules({ api }) {
     setAgents(a);
     setAllRules(r);
     if (s?.rules_source === 'file') setReadOnly(true);
-    // Refresh selected policy detail
-    if (selected?.type === 'policy') {
-      setSelectedPolicy(await api.getPolicy(selected.id));
+    // Refresh selected policy detail via ref to avoid stale closure
+    const cur = selectedRef.current;
+    if (cur?.type === 'policy') {
+      setSelectedPolicy(await api.getPolicy(cur.id));
     }
-  };
+  }, [api]);
 
   useEffect(() => { reload(); }, [api]);
 
