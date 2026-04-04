@@ -80,6 +80,52 @@ func TestAuthCache(t *testing.T) {
 	}
 }
 
+func TestAuthenticateByIP_Found(t *testing.T) {
+	h := NewHandler()
+	h.ReloadIPMap(map[string]string{
+		"172.18.0.3": "agent-one",
+		"172.18.0.4": "agent-two",
+	})
+	name, ok := h.AuthenticateByIP("172.18.0.3:54321")
+	if !ok {
+		t.Fatal("expected authentication to succeed")
+	}
+	if name != "agent-one" {
+		t.Fatalf("expected agent-one, got %s", name)
+	}
+}
+
+func TestAuthenticateByIP_NotFound(t *testing.T) {
+	h := NewHandler()
+	h.ReloadIPMap(map[string]string{"172.18.0.3": "agent-one"})
+	_, ok := h.AuthenticateByIP("172.18.0.99:12345")
+	if ok {
+		t.Fatal("expected authentication to fail for unknown IP")
+	}
+}
+
+func TestAuthenticateByIP_EmptyMap(t *testing.T) {
+	h := NewHandler()
+	_, ok := h.AuthenticateByIP("172.18.0.3:12345")
+	if ok {
+		t.Fatal("expected authentication to fail with empty map")
+	}
+}
+
+func TestReloadIPMap_Replaces(t *testing.T) {
+	h := NewHandler()
+	h.ReloadIPMap(map[string]string{"1.2.3.4": "old"})
+	h.ReloadIPMap(map[string]string{"5.6.7.8": "new"})
+	_, ok := h.AuthenticateByIP("1.2.3.4:1234")
+	if ok {
+		t.Fatal("old mapping should be gone after reload")
+	}
+	name, ok := h.AuthenticateByIP("5.6.7.8:1234")
+	if !ok || name != "new" {
+		t.Fatal("new mapping should be active")
+	}
+}
+
 func TestReloadClearsCache(t *testing.T) {
 	h := NewHandler()
 	h.Reload([]Agent{

@@ -12,6 +12,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
+	"net"
 	"net/http"
 	"strings"
 	"sync"
@@ -36,12 +37,14 @@ type cacheEntry struct {
 
 // Handler authenticates incoming proxy requests using HTTP Basic
 // Authentication (Proxy-Authorization header). It maintains an in-memory
-// agent registry and a time-bounded bcrypt result cache.
+// agent registry and a time-bounded bcrypt result cache. It also supports
+// transparent proxy mode via source-IP-based authentication.
 type Handler struct {
 	mu     sync.RWMutex
 	agents map[string]Agent // name -> Agent
 	cache  map[string]cacheEntry
 	ttl    time.Duration
+	ipMap  map[string]string // IP → agent name for transparent proxy
 }
 
 // NewHandler returns a Handler with an empty agent set and a 60-second
@@ -51,6 +54,7 @@ func NewHandler() *Handler {
 		agents: make(map[string]Agent),
 		cache:  make(map[string]cacheEntry),
 		ttl:    60 * time.Second,
+		ipMap:  make(map[string]string),
 	}
 }
 
@@ -130,6 +134,28 @@ func (h *Handler) Authenticate(req *http.Request) (string, bool) {
 		return name, true
 	}
 	return "", false
+}
+
+// ReloadIPMap atomically replaces the IP-to-agent mapping used by
+// transparent proxy mode for source-IP-based authentication.
+func (h *Handler) ReloadIPMap(mapping map[string]string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.ipMap = mapping
+}
+
+// AuthenticateByIP looks up the agent name associated with the given
+// remote address (ip:port format). Returns the agent name and true if
+// found, or empty string and false otherwise.
+func (h *Handler) AuthenticateByIP(remoteAddr string) (string, bool) {
+	host, _, err := net.SplitHostPort(remoteAddr)
+	if err != nil {
+		host = remoteAddr
+	}
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	name, ok := h.ipMap[host]
+	return name, ok
 }
 
 // cacheKeyFor returns a hex-encoded SHA-256 hash of "name:token", used as a
