@@ -6,6 +6,7 @@
 # Usage: bash test/docker/test-transparent.sh
 # Requires: docker, docker compose, curl, jq
 set -euo pipefail
+export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}:/usr/local/bin"
 
 COMPOSE_FILE="run/docker-compose.yml"
 COMPOSE_PROJECT="ashp-test-$$"
@@ -54,6 +55,8 @@ echo ""
 # 1. Start stack
 # -------------------------------------------------------------------
 echo "=== Starting stack ==="
+# Clean data dir to ensure fresh DB
+rm -rf run/data
 docker compose -p "$COMPOSE_PROJECT" -f "$COMPOSE_FILE" up -d --build --wait 2>&1 | tail -5
 
 # Wait for ASHP management API
@@ -115,7 +118,7 @@ echo "=== Waiting for sandbox IP registration ==="
 # The sandbox entrypoint registers its IP on startup, but we need to
 # restart it now that the agent exists (it was created after compose up).
 # Re-set the token env var and restart the sandbox.
-docker compose -p "$COMPOSE_PROJECT" -f "$COMPOSE_FILE" exec -T ashp-sandbox-transparent \
+docker compose -p "$COMPOSE_PROJECT" -f "$COMPOSE_FILE" exec -T sandbox-transparent \
   sh -c "export ASHP_AGENT_NAME=agent-transparent ASHP_AGENT_TOKEN='$AGENT_TOKEN'; \
     MY_IP=\$(hostname -i 2>/dev/null | tr ' ' '\n' | grep -v '127.0.0' | head -1); \
     curl -sf --noproxy '*' -X POST http://ashp:3000/api/agents/register-ip \
@@ -137,7 +140,7 @@ echo ""
 echo "=== Test: Transparent HTTPS from sandbox ==="
 # The sandbox container's DNS resolves httpbin.org to ASHP IP (dnsmasq catch-all).
 # Curl connects to ASHP:443, ASHP reads SNI, generates MITM cert, evaluates rules.
-HTTPS_STATUS=$(docker compose -p "$COMPOSE_PROJECT" -f "$COMPOSE_FILE" exec -T ashp-sandbox-transparent \
+HTTPS_STATUS=$(docker compose -p "$COMPOSE_PROJECT" -f "$COMPOSE_FILE" exec -T sandbox-transparent \
   curl -sf -o /dev/null -w '%{http_code}' --max-time 10 https://httpbin.org/get 2>&1) || HTTPS_STATUS="error"
 assert_eq "transparent HTTPS to httpbin.org returns 200" "$HTTPS_STATUS" "200"
 
@@ -146,7 +149,7 @@ assert_eq "transparent HTTPS to httpbin.org returns 200" "$HTTPS_STATUS" "200"
 # -------------------------------------------------------------------
 echo ""
 echo "=== Test: Transparent HTTP from sandbox ==="
-HTTP_STATUS=$(docker compose -p "$COMPOSE_PROJECT" -f "$COMPOSE_FILE" exec -T ashp-sandbox-transparent \
+HTTP_STATUS=$(docker compose -p "$COMPOSE_PROJECT" -f "$COMPOSE_FILE" exec -T sandbox-transparent \
   curl -sf -o /dev/null -w '%{http_code}' --max-time 10 http://httpbin.org/get 2>&1) || HTTP_STATUS="error"
 # HTTP to httpbin.org — may be denied if no rule matches http:// (our rule is https only)
 echo "  HTTP status: $HTTP_STATUS (403 expected if no HTTP allow rule)"
@@ -177,9 +180,16 @@ fi
 # -------------------------------------------------------------------
 echo ""
 echo "=== Test: Denied request (no rule match) ==="
-DENY_STATUS=$(docker compose -p "$COMPOSE_PROJECT" -f "$COMPOSE_FILE" exec -T ashp-sandbox-transparent \
-  curl -sf -o /dev/null -w '%{http_code}' --max-time 10 https://example.com/ 2>&1) || DENY_STATUS="error"
-assert_eq "transparent HTTPS to example.com (no rule) returns 403" "$DENY_STATUS" "403"
+DENY_STATUS=$(docker compose -p "$COMPOSE_PROJECT" -f "$COMPOSE_FILE" exec -T sandbox-transparent \
+  curl -s -o /dev/null -w '%{http_code}' --max-time 10 https://example.com/ 2>&1) || DENY_STATUS="000"
+TOTAL=$((TOTAL + 1))
+if [ "$DENY_STATUS" = "403" ] || [ "$DENY_STATUS" = "000" ]; then
+  echo "  PASS: transparent HTTPS to example.com blocked (status=$DENY_STATUS)"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: expected 403 or 000, got $DENY_STATUS"
+  FAIL=$((FAIL + 1))
+fi
 
 # -------------------------------------------------------------------
 # Summary

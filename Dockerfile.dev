@@ -7,7 +7,7 @@ RUN apk add --no-cache nodejs npm
 COPY --from=golang:1-alpine /usr/local/go /usr/local/go
 ENV PATH="/usr/local/go/bin:/root/go/bin:${PATH}"
 
-RUN apk add --no-cache bash git ca-certificates curl sudo
+RUN apk add --no-cache bash git ca-certificates curl sudo jq
 
 # Native module build deps (better-sqlite3)
 RUN apk add --no-cache python3 make g++
