@@ -74,7 +74,7 @@ start_server() {
   # Wait for server to be ready
   i=0
   while [ $i -lt 30 ]; do
-    if curl -sf http://localhost:3000/api/status > /dev/null 2>&1; then
+    if wget -qO /dev/null http://127.0.0.1:3000/api/status 2>/dev/null; then
       echo "  Server ready (PID $(cat "$PID_DIR/server.pid"))"
       return 0
     fi
@@ -119,7 +119,7 @@ start_gui() {
   echo $! > "$PID_DIR/gui.pid"
   i=0
   while [ $i -lt 20 ]; do
-    if curl -sf http://localhost:5173/ > /dev/null 2>&1; then
+    if wget -qO /dev/null http://127.0.0.1:5173/ 2>/dev/null; then
       echo "  GUI ready (PID $(cat "$PID_DIR/gui.pid"))"
       return 0
     fi

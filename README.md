@@ -231,7 +231,7 @@ Event types: `request.allowed`, `request.blocked`, `approval.needed`, `approval.
 ### Setup
 
 ```bash
-cd server && npm install
+cd ashp/server && npm install
 cd ../gui && npm install
 cd ../proxy && go mod download
 ```
@@ -239,6 +239,7 @@ cd ../proxy && go mod download
 ### Dev Mode
 
 ```bash
+cd ashp
 make dev          # Start all components (proxy + server + GUI with hot reload)
 make dev-stop     # Stop all
 make dev-restart  # Restart all
@@ -252,10 +253,13 @@ docker compose -f docker-compose.dev.yml up -d
 docker exec -it ashp-dev bash
 ```
 
+All make targets run from the `ashp/` directory.
+
 ### Make Targets
 
 | Target | Description |
 |--------|-------------|
+| `make install` | Install server + GUI dependencies |
 | `make dev` | Start dev stack (proxy + server + GUI) |
 | `make test` | Run all unit tests (proxy + server + GUI) |
 | `make test-proxy` | Go proxy unit tests |
@@ -268,6 +272,7 @@ docker exec -it ashp-dev bash
 ### Running Tests
 
 ```bash
+cd ashp
 make test        # All unit tests
 make test-e2e    # E2E: allow, deny, hold flows
 make bench       # Latency overhead benchmark

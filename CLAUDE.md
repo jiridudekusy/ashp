@@ -102,7 +102,7 @@ Abstract interfaces in `server/src/dao/interfaces.js`, SQLite implementations in
 
 When releasing a new version:
 
-0. **Update README.md** (`ashp/README.md`) — ensure new features, API endpoints, config changes are documented
+0. **Update README.md** (repo root) — ensure new features, API endpoints, config changes are documented
 1. **Check last version:** `git tag --sort=-v:refname | head -5`
 2. **Determine version bump:**
    - Bug fixes only → patch (e.g., v0.1.0 → v0.1.1)

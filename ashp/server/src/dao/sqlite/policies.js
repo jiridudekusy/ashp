@@ -84,6 +84,12 @@ export class SqlitePoliciesDAO extends PoliciesDAO {
         )
         SELECT 1 FROM ancestors WHERE id = ?
       `),
+      getPolicyAgents: db.prepare(`
+        SELECT a.* FROM agents a
+        JOIN agent_policies ap ON a.id = ap.agent_id
+        WHERE ap.policy_id = ?
+        ORDER BY a.id
+      `),
       assignToAgent: db.prepare('INSERT OR IGNORE INTO agent_policies (agent_id, policy_id) VALUES (?, ?)'),
       unassignFromAgent: db.prepare('DELETE FROM agent_policies WHERE agent_id = ? AND policy_id = ?'),
       getAgentPolicies: db.prepare(`
@@ -209,6 +215,27 @@ export class SqlitePoliciesDAO extends PoliciesDAO {
       root.children = this.#stmts.childrenOf.all(root.id).map(deserializePolicy);
     }
     return roots;
+  }
+
+  /**
+   * Returns direct children of a policy.
+   * @param {number} parentId
+   * @returns {Promise<import('../interfaces.js').Policy[]>}
+   */
+  async getChildren(parentId) {
+    return this.#stmts.childrenOf.all(parentId).map(deserializePolicy);
+  }
+
+  /**
+   * Returns agents directly assigned to a policy.
+   * @param {number} policyId
+   * @returns {Promise<Array<{id: number, name: string}>>}
+   */
+  async getPolicyAgents(policyId) {
+    return this.#stmts.getPolicyAgents.all(policyId).map(row => ({
+      id: row.id,
+      name: row.name,
+    }));
   }
 
   /**

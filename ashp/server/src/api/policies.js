@@ -56,8 +56,11 @@ export default function policiesRoutes({ policiesDAO, rulesDAO, agentsDAO, ipc, 
 
   r.get('/:id', async (req, res, next) => {
     try {
-      const policy = await policiesDAO.get(Number(req.params.id));
+      const id = Number(req.params.id);
+      const policy = await policiesDAO.get(id);
       if (!policy) return res.status(404).json({ error: 'Policy not found' });
+      policy.agents = await policiesDAO.getPolicyAgents(id);
+      policy.children = await policiesDAO.getChildren(id);
       res.json(policy);
     } catch (e) { next(e); }
   });

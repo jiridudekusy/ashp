@@ -1,26 +1,28 @@
 FROM docker:dind
 
-# Node.js
+# Node.js 22+
 RUN apk add --no-cache nodejs npm
 
-# Go
-ARG GO_VERSION=1.23.6
-RUN apk add --no-cache curl bash git && \
-    curl -fsSL "https://go.dev/dl/go${GO_VERSION}.linux-$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/').tar.gz" \
-    | tar -C /usr/local -xz
+# Go (copy from official image to avoid pinning version)
+COPY --from=golang:1-alpine /usr/local/go /usr/local/go
 ENV PATH="/usr/local/go/bin:/root/go/bin:${PATH}"
 
-# SQLCipher build deps (needed for @journeyapps/sqlcipher native module)
-RUN apk add --no-cache python3 make g++ sqlcipher-dev
+RUN apk add --no-cache bash git ca-certificates curl sudo
 
-# Claude Code
-RUN npm install -g @anthropic-ai/claude-code
+# Native module build deps (better-sqlite3)
+RUN apk add --no-cache python3 make g++
 
 # Non-root user (Claude Code refuses --dangerously-skip-permissions as root)
 RUN addgroup -S dev && adduser -S dev -G dev -G docker -h /home/dev -s /bin/bash \
     && mkdir -p /home/dev/go /home/dev/.claude \
-    && chown -R dev:dev /home/dev
-ENV PATH="/usr/local/go/bin:/home/dev/go/bin:${PATH}"
+    && chown -R dev:dev /home/dev \
+    && echo "dev ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/dev
+
+# Claude Code — install as dev user via `claude install` (goes to ~/.local/bin)
+USER dev
+RUN npx @anthropic-ai/claude-code install
+USER root
+ENV PATH="/home/dev/.local/bin:/usr/local/go/bin:/home/dev/go/bin:${PATH}"
 ENV GOPATH="/home/dev/go"
 
 WORKDIR /workspace

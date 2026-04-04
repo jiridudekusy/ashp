@@ -1,4 +1,4 @@
-.PHONY: build build-proxy build-gui dev dev-stop dev-restart dev-status dev-logs test test-server test-proxy test-gui test-e2e bench clean
+.PHONY: build build-proxy build-gui install install-server install-gui dev dev-stop dev-restart dev-status dev-logs test test-server test-proxy test-gui test-e2e bench clean
 
 build: build-proxy build-gui
 
@@ -7,6 +7,14 @@ build-proxy:
 
 build-gui:
 	cd gui && npm run build
+
+install: install-server install-gui
+
+install-server:
+	cd server && npm install
+
+install-gui:
+	cd gui && npm install
 
 dev:
 	./scripts/dev.sh start
