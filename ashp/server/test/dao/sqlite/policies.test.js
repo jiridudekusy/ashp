@@ -214,5 +214,55 @@ describe('SqlitePoliciesDAO', () => {
       const rules = await dao.resolveAgentRules(agent.id);
       assert.deepEqual(rules, []);
     });
+
+    it('multi-policy: allow wins over deny at same priority', async () => {
+      const agent = await agentsDAO.create({ name: 'multi-bot', description: '' });
+      const policyA = await dao.create({ name: 'allow-policy', description: '' });
+      const policyB = await dao.create({ name: 'deny-policy', description: '' });
+      await dao.assignToAgent(policyA.id, agent.id);
+      await dao.assignToAgent(policyB.id, agent.id);
+
+      await rulesDAO.create({ name: 'allow-example', url_pattern: '.*example\\.com.*', action: 'allow', priority: 10, policy_id: policyA.id });
+      await rulesDAO.create({ name: 'deny-example', url_pattern: '.*example\\.com.*', action: 'deny', priority: 10, policy_id: policyB.id });
+
+      const rules = await dao.resolveAgentRules(agent.id);
+      assert.equal(rules.length, 2);
+      // Allow should come first when priority is equal
+      assert.equal(rules[0].action, 'allow');
+      assert.equal(rules[1].action, 'deny');
+    });
+
+    it('multi-policy: higher priority deny still wins over lower priority allow', async () => {
+      const agent = await agentsDAO.create({ name: 'priority-bot', description: '' });
+      const policyA = await dao.create({ name: 'low-allow', description: '' });
+      const policyB = await dao.create({ name: 'high-deny', description: '' });
+      await dao.assignToAgent(policyA.id, agent.id);
+      await dao.assignToAgent(policyB.id, agent.id);
+
+      await rulesDAO.create({ name: 'allow-low', url_pattern: '.*example\\.com.*', action: 'allow', priority: 5, policy_id: policyA.id });
+      await rulesDAO.create({ name: 'deny-high', url_pattern: '.*example\\.com.*', action: 'deny', priority: 20, policy_id: policyB.id });
+
+      const rules = await dao.resolveAgentRules(agent.id);
+      assert.equal(rules[0].name, 'deny-high');
+      assert.equal(rules[1].name, 'allow-low');
+    });
+
+    it('multi-policy: allow from one policy applies even when other policy has no match', async () => {
+      const agent = await agentsDAO.create({ name: 'partial-bot', description: '' });
+      const policyA = await dao.create({ name: 'example-allow', description: '' });
+      const policyB = await dao.create({ name: 'google-deny', description: '' });
+      await dao.assignToAgent(policyA.id, agent.id);
+      await dao.assignToAgent(policyB.id, agent.id);
+
+      await rulesDAO.create({ name: 'allow-example', url_pattern: '.*example\\.com.*', action: 'allow', priority: 10, policy_id: policyA.id });
+      await rulesDAO.create({ name: 'deny-google', url_pattern: '.*google\\.com.*', action: 'deny', priority: 10, policy_id: policyB.id });
+
+      const rules = await dao.resolveAgentRules(agent.id);
+      // Both rules present, matching is up to the evaluator
+      assert.equal(rules.length, 2);
+      const names = rules.map(r => r.name);
+      assert.ok(names.includes('allow-example'));
+      assert.ok(names.includes('deny-google'));
+    });
   });
 });

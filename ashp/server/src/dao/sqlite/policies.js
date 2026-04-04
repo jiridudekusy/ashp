@@ -281,7 +281,8 @@ export class SqlitePoliciesDAO extends PoliciesDAO {
 
     const placeholders = policyIds.map(() => '?').join(', ');
     const rows = this.#db
-      .prepare(`SELECT * FROM rules WHERE policy_id IN (${placeholders}) AND enabled = 1 ORDER BY priority DESC`)
+      .prepare(`SELECT * FROM rules WHERE policy_id IN (${placeholders}) AND enabled = 1
+        ORDER BY priority DESC, CASE action WHEN 'allow' THEN 0 WHEN 'deny' THEN 1 ELSE 2 END`)
       .all(...policyIds);
     return rows.map(deserializeRule);
   }

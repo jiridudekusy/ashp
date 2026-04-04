@@ -153,6 +153,44 @@ describe('SqliteRulesDAO', () => {
     });
   });
 
+  describe('match with policyId', () => {
+    it('scopes match to specific policy', async () => {
+      const info1 = db.prepare("INSERT INTO policies (name) VALUES ('pol-a')").run();
+      const info2 = db.prepare("INSERT INTO policies (name) VALUES ('pol-b')").run();
+      await dao.create({ name: 'allow-a', url_pattern: '.*example\\.com.*', action: 'allow', priority: 10, policy_id: info1.lastInsertRowid });
+      await dao.create({ name: 'deny-b', url_pattern: '.*example\\.com.*', action: 'deny', priority: 10, policy_id: info2.lastInsertRowid });
+
+      const matchA = await dao.match('https://example.com', 'GET', info1.lastInsertRowid);
+      assert.equal(matchA.name, 'allow-a');
+
+      const matchB = await dao.match('https://example.com', 'GET', info2.lastInsertRowid);
+      assert.equal(matchB.name, 'deny-b');
+    });
+
+    it('match without policyId returns first across all policies', async () => {
+      const info1 = db.prepare("INSERT INTO policies (name) VALUES ('pol-x')").run();
+      await dao.create({ name: 'rule-x', url_pattern: '.*example\\.com.*', action: 'allow', priority: 50, policy_id: info1.lastInsertRowid });
+
+      const match = await dao.match('https://example.com', 'GET');
+      assert.equal(match.name, 'rule-x');
+    });
+  });
+
+  describe('match with wildcard method', () => {
+    it('* method matches any HTTP method', async () => {
+      await dao.create({ name: 'wildcard-rule', url_pattern: '.*', methods: ['*'], action: 'allow', priority: 10 });
+
+      const matchGet = await dao.match('https://example.com', 'GET');
+      assert.equal(matchGet.name, 'wildcard-rule');
+
+      const matchPost = await dao.match('https://example.com', 'POST');
+      assert.equal(matchPost.name, 'wildcard-rule');
+
+      const matchDelete = await dao.match('https://example.com', 'DELETE');
+      assert.equal(matchDelete.name, 'wildcard-rule');
+    });
+  });
+
   describe('hit count', () => {
     it('incrementHitCount increments total and today', async () => {
       const rule = await dao.create({ name: 'r1', url_pattern: '^http://x', methods: [], action: 'allow' });

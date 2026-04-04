@@ -158,20 +158,24 @@ export class SqliteRulesDAO extends RulesDAO {
   }
 
   /**
-   * Finds the first enabled rule matching the URL (via regex) and HTTP method.
+   * Finds the first enabled rule matching the URL (via regex) and HTTP method,
+   * optionally scoped to a specific policy.
    * Rules are evaluated in priority order (highest first). If a rule's `methods`
-   * array is empty, it matches all methods. Malformed regex patterns are silently skipped.
+   * array is empty or contains "*", it matches all methods. Malformed regex patterns
+   * are silently skipped.
    *
    * @param {string} url - The full request URL to match against.
    * @param {string} method - The HTTP method (e.g. 'GET', 'POST').
+   * @param {number} [policyId] - If provided, only match rules belonging to this policy.
    * @returns {Promise<import('../interfaces.js').Rule|null>} First matching rule, or null.
    */
-  async match(url, method) {
+  async match(url, method, policyId) {
     for (const row of this.#stmts.listEnabled.all()) {
       try {
+        if (policyId != null && row.policy_id !== policyId) continue;
         if (!new RegExp(row.url_pattern).test(url)) continue;
         const methods = JSON.parse(row.methods);
-        if (methods.length > 0 && !methods.includes(method)) continue;
+        if (methods.length > 0 && !methods.includes('*') && !methods.includes(method)) continue;
         return deserialize(row);
       } catch {
         continue;
