@@ -5,13 +5,14 @@
  */
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { parseUTC } from '../utils';
 import { Badge } from '../components/Badge.jsx';
 import styles from './Dashboard.module.css';
 
 /** Formats a timestamp as a human-readable relative time string (e.g., "5m ago"). */
 function timeAgo(timestamp) {
   if (!timestamp) return 'now';
-  const diff = Date.now() - new Date(timestamp).getTime();
+  const diff = Date.now() - parseUTC(timestamp).getTime();
   const seconds = Math.floor(diff / 1000);
   if (seconds < 60) return `${seconds}s ago`;
   const minutes = Math.floor(seconds / 60);

@@ -14,6 +14,7 @@
  * unassigns that policy from the agent.
  */
 import { useState, useEffect, useCallback } from 'react';
+import { parseUTC } from '../utils';
 import { Modal } from '../components/Modal';
 import styles from './Agents.module.css';
 
@@ -195,7 +196,7 @@ export default function Agents({ api }) {
                   <span className={a.enabled ? styles.dotGreen : styles.dotGrey} />
                   {a.enabled ? 'Active' : 'Disabled'}
                 </span>
-                <span>{new Date(a.created_at).toLocaleDateString()}</span>
+                <span>{parseUTC(a.created_at).toLocaleDateString()}</span>
                 {/* IP Address column */}
                 <span className={styles.cellIp}>
                   {a.ip_address ? (

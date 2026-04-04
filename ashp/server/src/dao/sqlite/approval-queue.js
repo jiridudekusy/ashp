@@ -35,6 +35,9 @@ export class SqliteApprovalQueueDAO extends ApprovalQueueDAO {
       resolve: db.prepare(`UPDATE approval_queue SET status=@status,
         resolved_at=datetime('now'), resolved_by=@resolved_by, create_rule=@create_rule
         WHERE id=@id AND status='pending'`),
+      expireStale: db.prepare(`UPDATE approval_queue SET status='rejected',
+        resolved_at=datetime('now'), resolved_by='system:expired'
+        WHERE status='pending' AND created_at < datetime('now', @offset)`),
     };
   }
 
@@ -84,4 +87,16 @@ export class SqliteApprovalQueueDAO extends ApprovalQueueDAO {
 
   /** @returns {Promise<import('../interfaces.js').ApprovalEntry[]>} All pending approvals, oldest first. */
   async listPending() { return this.#stmts.listPending.all(); }
+
+  /**
+   * Marks stale pending approvals as rejected. Called periodically to clean up
+   * entries where the Go proxy has already timed out the held connection.
+   *
+   * @param {number} ttlSeconds - Hold timeout in seconds (approvals older than this are expired).
+   * @returns {Promise<number>} Number of expired entries.
+   */
+  async expireStale(ttlSeconds = 120) {
+    const info = this.#stmts.expireStale.run({ offset: `-${ttlSeconds} seconds` });
+    return info.changes;
+  }
 }

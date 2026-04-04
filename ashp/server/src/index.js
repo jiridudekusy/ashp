@@ -231,7 +231,18 @@ export async function startServer(flags = {}) {
   };
   process.on('SIGHUP', sighupHandler);
 
+  // Periodically expire stale pending approvals (proxy already timed out the connection).
+  const holdTimeout = config.proxy?.hold_timeout || 60;
+  const expireInterval = setInterval(async () => {
+    try {
+      // Allow 2x hold_timeout before expiring, in case of clock skew or slow resolution.
+      const expired = await approvalQueueDAO.expireStale(holdTimeout * 2);
+      if (expired > 0) events.emit('approval.resolved', { expired });
+    } catch { /* ignore cleanup errors */ }
+  }, 30_000);
+
   return { app, server, ipc, proxyManager, db, close: () => {
+    clearInterval(expireInterval);
     process.removeListener('SIGHUP', sighupHandler);
     proxyManager.stop();
     server.close();

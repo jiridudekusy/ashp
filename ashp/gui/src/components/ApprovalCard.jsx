@@ -6,11 +6,12 @@
  * elapsed/timeout ratio. Parent component drives re-renders via a 1-second
  * interval tick to animate the bar and update relative timestamps.
  */
+import { parseUTC } from '../utils';
 import styles from './ApprovalCard.module.css';
 
 function formatRelativeTime(timestamp) {
   if (!timestamp) return '';
-  const seconds = Math.floor((Date.now() - new Date(timestamp).getTime()) / 1000);
+  const seconds = Math.floor((Date.now() - parseUTC(timestamp).getTime()) / 1000);
   if (seconds < 5) return 'just now';
   if (seconds < 60) return `${seconds}s ago`;
   const minutes = Math.floor(seconds / 60);
@@ -21,7 +22,7 @@ function formatRelativeTime(timestamp) {
 export default function ApprovalCard({ approval, selected, onClick, timeoutSeconds }) {
   const method = approval.method || 'UNKNOWN';
   const url = approval.suggested_pattern || approval.url || 'Unknown';
-  const elapsed = (Date.now() - new Date(approval.created_at).getTime()) / 1000;
+  const elapsed = (Date.now() - parseUTC(approval.created_at).getTime()) / 1000;
   const timeout = timeoutSeconds || 30;
   const progress = Math.min(elapsed / timeout, 1);
 

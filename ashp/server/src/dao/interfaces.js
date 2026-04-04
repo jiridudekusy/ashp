@@ -97,6 +97,8 @@ export class ApprovalQueueDAO {
   resolve(id, action) { return notImpl('resolve'); }
   /** @returns {Promise<ApprovalEntry[]>} All pending approvals ordered by creation time. */
   listPending()       { return notImpl('listPending'); }
+  /** @param {number} ttlSeconds @returns {Promise<number>} Number of expired entries. */
+  expireStale(ttlSeconds) { return notImpl('expireStale'); }
 }
 
 /**

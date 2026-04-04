@@ -20,6 +20,7 @@
  * updated via SSE 'approval.resolved' events.
  */
 import { useState, useEffect, useCallback } from 'react';
+import { parseUTC } from '../utils';
 import { Badge } from '../components/Badge';
 import { DetailPanel } from '../components/DetailPanel';
 import { SmartRuleBuilder } from '../components/SmartRuleBuilder';
@@ -32,7 +33,7 @@ const DEFAULT_TIMEOUT = 30;
 
 function formatRelativeTime(timestamp) {
   if (!timestamp) return '';
-  const seconds = Math.floor((Date.now() - new Date(timestamp).getTime()) / 1000);
+  const seconds = Math.floor((Date.now() - parseUTC(timestamp).getTime()) / 1000);
   if (seconds < 5) return 'just now';
   if (seconds < 60) return `${seconds}s ago`;
   const minutes = Math.floor(seconds / 60);
@@ -187,7 +188,7 @@ export default function Approvals({ api, events }) {
   const timeoutSeconds = DEFAULT_TIMEOUT;
 
   const countdownNode = selected ? (() => {
-    const elapsed = (Date.now() - new Date(selected.created_at).getTime()) / 1000;
+    const elapsed = (Date.now() - parseUTC(selected.created_at).getTime()) / 1000;
     const remaining = Math.max(0, Math.ceil(timeoutSeconds - elapsed));
     return (
       <div className={styles.timeout}>

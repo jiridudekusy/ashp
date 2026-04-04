@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { parseUTC } from '../utils';
 import { Badge } from './Badge.jsx';
 import { JsonViewer } from './JsonViewer.jsx';
 import styles from './DetailPanel.module.css';
@@ -30,7 +31,7 @@ export function DetailPanel({ entry, api, onCreateRule, children }) {
           <Badge variant={entry.decision}>{entry.decision}</Badge>
         </div>
         <div className={styles.headerMeta}>
-          {entry.timestamp && new Date(entry.timestamp).toLocaleString()}
+          {entry.timestamp && parseUTC(entry.timestamp).toLocaleString()}
           {entry.status_code ? ` · ${entry.status_code}` : ''}
           {entry.duration_ms ? ` · ${entry.duration_ms}ms` : ''}
         </div>

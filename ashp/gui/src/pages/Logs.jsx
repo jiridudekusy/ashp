@@ -13,6 +13,7 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { parseUTC } from '../utils';
 import { Badge } from '../components/Badge';
 import { SegmentedControl } from '../components/SegmentedControl';
 import { DetailPanel } from '../components/DetailPanel';
@@ -37,7 +38,7 @@ const METHOD_OPTIONS = [
 
 function formatTime(timestamp) {
   if (!timestamp) return '';
-  const d = new Date(timestamp);
+  const d = parseUTC(timestamp);
   const h = d.getHours().toString().padStart(2, '0');
   const m = d.getMinutes().toString().padStart(2, '0');
   return `${h}:${m}`;
