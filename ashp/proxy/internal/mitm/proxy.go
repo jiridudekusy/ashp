@@ -64,8 +64,34 @@ type Proxy struct {
 	logWriter       *logger.Writer
 	ipc             *ipc.Client
 	ln              net.Listener
+	ca              tls.Certificate
 	defaultBehavior string
 	holdRequest     func(msg ipc.Message) (approved bool)
+}
+
+// RequestContext holds the information needed to evaluate a proxied request.
+// Shared between the goproxy handler and transparent listeners.
+type RequestContext struct {
+	AgentID string
+	FullURL string
+	Method  string
+	Mode    string // "proxy" or "transparent"
+}
+
+// RequestDecision is the result of evaluating a request against the rule engine.
+type RequestDecision struct {
+	Action string      // "allow", "deny", "hold", "queue"
+	Rule   *rules.Rule // matched rule, or nil if default behavior was used
+}
+
+// evaluateRequest matches the request against rules and returns the decision.
+// It does NOT capture bodies or send IPC — the caller handles that.
+func (p *Proxy) evaluateRequest(ctx RequestContext) RequestDecision {
+	rule := p.evaluator.Match(ctx.AgentID, ctx.FullURL, ctx.Method)
+	if rule != nil {
+		return RequestDecision{Action: rule.Action, Rule: rule}
+	}
+	return RequestDecision{Action: p.defaultBehavior}
 }
 
 // New constructs a fully configured Proxy. It wires up three goproxy handlers:
@@ -83,6 +109,7 @@ func New(cfg Config) *Proxy {
 	p := &Proxy{
 		gp: gp, evaluator: cfg.Evaluator, auth: cfg.Auth,
 		logWriter: lw, ipc: cfg.IPC,
+		ca:              cfg.CA,
 		defaultBehavior: cfg.DefaultBehavior,
 		holdRequest:     cfg.HoldRequest,
 	}
@@ -167,59 +194,68 @@ func New(cfg Config) *Proxy {
 				fullURL = req.URL.Scheme + "://" + hostname + req.URL.RequestURI()
 			}
 		}
-		rule := p.evaluator.Match(agentID, fullURL, req.Method)
+		decision := p.evaluateRequest(RequestContext{
+			AgentID: agentID, FullURL: fullURL, Method: req.Method, Mode: "proxy",
+		})
+		rule := decision.Rule
 
-		// Explicit deny rule: block immediately and optionally log the body.
-		if rule != nil && rule.Action == "deny" {
-			var reqBodyRef string
-			if rule.LogRequestBody != "" && rule.LogRequestBody != "none" {
-				ref, _ := p.captureBody(req.Body, rule.LogRequestBody)
-				reqBodyRef = ref
-			}
-			ipcData := map[string]interface{}{
-				"agent_id": agentID, "url": fullURL, "method": req.Method, "decision": "denied", "reason": "rule_deny",
-				"rule_id": rule.ID,
-			}
-			if reqBodyRef != "" {
-				ipcData["request_body_ref"] = reqBodyRef
-			}
-			p.sendIPC("request.blocked", ipcData)
-			return req, goproxy.NewResponse(req, goproxy.ContentTypeText, 403, "Forbidden by proxy rule")
+		// Override default behavior if the matched rule specifies one.
+		action := decision.Action
+		if rule != nil && rule.Action != "allow" && rule.Action != "deny" && rule.DefaultBehavior != "" {
+			action = rule.DefaultBehavior
 		}
 
-		// Explicit allow rule: capture request body, stash metadata for the
-		// response handler, and forward the request upstream.
-		behavior := p.defaultBehavior
-		if rule != nil && rule.Action == "allow" {
-			var reqBodyRef string
-			if rule.LogRequestBody != "" && rule.LogRequestBody != "none" {
-				ref, origData := p.captureBody(req.Body, rule.LogRequestBody)
-				reqBodyRef = ref
-				// Restore body for forwarding (captureBody consumed it).
-				if origData != nil {
-					req.Body = io.NopCloser(bytes.NewReader(origData))
-					req.ContentLength = int64(len(origData))
-				}
-			}
-			ctx.UserData = map[string]interface{}{
-				"agent_id": agentID, "url": fullURL,
-				"request_body_ref":  reqBodyRef,
-				"log_response_body": rule.LogResponseBody,
-				"rule_id":           rule.ID,
-			}
-			return req, nil
-		}
-		if rule != nil && rule.DefaultBehavior != "" {
-			behavior = rule.DefaultBehavior
-		}
-
-		// No explicit allow/deny rule matched -- apply default behavior.
-		switch behavior {
+		switch action {
 		case "deny":
+			if rule != nil {
+				// Explicit deny rule: block immediately and optionally log the body.
+				var reqBodyRef string
+				if rule.LogRequestBody != "" && rule.LogRequestBody != "none" {
+					ref, _ := p.captureBody(req.Body, rule.LogRequestBody)
+					reqBodyRef = ref
+				}
+				ipcData := map[string]interface{}{
+					"agent_id": agentID, "url": fullURL, "method": req.Method, "decision": "denied", "reason": "rule_deny",
+					"rule_id": rule.ID,
+				}
+				if reqBodyRef != "" {
+					ipcData["request_body_ref"] = reqBodyRef
+				}
+				p.sendIPC("request.blocked", ipcData)
+				return req, goproxy.NewResponse(req, goproxy.ContentTypeText, 403, "Forbidden by proxy rule")
+			}
+			// Default deny: no rule matched.
 			p.sendIPC("request.blocked", map[string]interface{}{
 				"agent_id": agentID, "url": fullURL, "method": req.Method, "decision": "denied", "reason": "default_deny",
 			})
 			return req, goproxy.NewResponse(req, goproxy.ContentTypeText, 403, "Forbidden by default policy")
+
+		case "allow":
+			// Explicit allow rule: capture request body, stash metadata for the
+			// response handler, and forward the request upstream.
+			if rule != nil {
+				var reqBodyRef string
+				if rule.LogRequestBody != "" && rule.LogRequestBody != "none" {
+					ref, origData := p.captureBody(req.Body, rule.LogRequestBody)
+					reqBodyRef = ref
+					// Restore body for forwarding (captureBody consumed it).
+					if origData != nil {
+						req.Body = io.NopCloser(bytes.NewReader(origData))
+						req.ContentLength = int64(len(origData))
+					}
+				}
+				ctx.UserData = map[string]interface{}{
+					"agent_id": agentID, "url": fullURL,
+					"request_body_ref":  reqBodyRef,
+					"log_response_body": rule.LogResponseBody,
+					"rule_id":           rule.ID,
+				}
+				return req, nil
+			}
+			// Default allow (shouldn't normally happen, but handle gracefully).
+			ctx.UserData = map[string]interface{}{"agent_id": agentID, "url": fullURL}
+			return req, nil
+
 		case "hold":
 			// Block this goroutine and ask the control plane for approval.
 			if p.holdRequest != nil {
@@ -245,11 +281,13 @@ func New(cfg Config) *Proxy {
 				"agent_id": agentID, "url": fullURL, "method": req.Method, "decision": "denied", "reason": "default_deny",
 			})
 			return req, goproxy.NewResponse(req, goproxy.ContentTypeText, 403, "Forbidden by default policy (hold not available)")
+
 		case "queue":
 			p.sendIPC("request.blocked", map[string]interface{}{
 				"agent_id": agentID, "url": fullURL, "method": req.Method, "decision": "denied", "reason": "queued",
 			})
 			return req, goproxy.NewResponse(req, goproxy.ContentTypeText, 403, "Forbidden by default policy (queued for review)")
+
 		default:
 			p.sendIPC("request.blocked", map[string]interface{}{
 				"agent_id": agentID, "url": fullURL, "method": req.Method, "decision": "denied", "reason": "default_deny",

@@ -122,6 +122,9 @@ func (e *Evaluator) Match(agentID, url, method string) *Rule {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 	rules := e.byAgent[agentID]
+	if len(rules) == 0 && agentID != "__all__" {
+		rules = e.byAgent["__all__"]
+	}
 	for _, cr := range rules {
 		if !cr.re.MatchString(url) {
 			continue
