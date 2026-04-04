@@ -18,7 +18,9 @@ const THEME_ICONS = { light: '\u2600', dark: '\uD83C\uDF19', system: '\uD83D\uDC
  * @param {boolean} props.proxyConnected - Whether the Go proxy is connected
  * @param {Function} props.onLogout - Called when logout is clicked
  */
-export function TopNav({ pendingCount = 0, proxyConnected = false, onLogout }) {
+const GITHUB_REPO = 'https://github.com/jiridudekusy/ashp';
+
+export function TopNav({ pendingCount = 0, proxyConnected = false, onLogout, version, commit }) {
   const { theme, cycleTheme } = useTheme();
 
   return (
@@ -35,6 +37,14 @@ export function TopNav({ pendingCount = 0, proxyConnected = false, onLogout }) {
         <NavLink to="/agents" className={({ isActive }) => isActive ? styles.tabActive : styles.tab}>Agents</NavLink>
       </div>
       <div className={styles.right}>
+        {version && version !== 'dev' && (
+          <span className={styles.version}>
+            <a href={`${GITHUB_REPO}/releases/tag/${version}`} target="_blank" rel="noopener noreferrer" className={styles.versionLink}>{version}</a>
+            {commit && commit !== 'unknown' && (
+              <a href={`${GITHUB_REPO}/commit/${commit}`} target="_blank" rel="noopener noreferrer" className={styles.commitLink}>{commit.slice(0, 7)}</a>
+            )}
+          </span>
+        )}
         <div className={styles.status}>
           <span className={proxyConnected ? styles.dotGreen : styles.dotRed} />
           <span className={styles.statusText}>{proxyConnected ? 'Proxy connected' : 'Proxy disconnected'}</span>

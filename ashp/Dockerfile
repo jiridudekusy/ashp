@@ -41,7 +41,11 @@ COPY entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
 EXPOSE 80 443 3000 8080 53/udp 53/tcp
+ARG VERSION=dev
+ARG COMMIT=unknown
 ENV NODE_ENV=production
+ENV ASHP_VERSION=$VERSION
+ENV ASHP_COMMIT=$COMMIT
 
 ENTRYPOINT ["tini", "--", "/app/entrypoint.sh"]
 CMD ["node", "server/src/index.js", "--config", "/etc/ashp/ashp.json"]

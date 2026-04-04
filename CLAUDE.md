@@ -126,7 +126,7 @@ When releasing a new version:
    - New features or enhancements → minor (e.g., v0.1.0 → v0.2.0)
 3. **Propose version** to the user before proceeding
 4. **Create git tag:** `git tag -a vX.Y.Z -m "vX.Y.Z — summary"`
-5. **Build Docker:** `cd ashp && docker build -t jiridudekusy/ashp:latest -t jiridudekusy/ashp:vX.Y.Z .`
+5. **Build Docker:** `cd ashp && docker build --no-cache --build-arg VERSION=vX.Y.Z --build-arg COMMIT=$(git rev-parse --short HEAD) -t jiridudekusy/ashp:latest -t jiridudekusy/ashp:vX.Y.Z .`
 6. **Push Docker:** `docker push jiridudekusy/ashp:latest && docker push jiridudekusy/ashp:vX.Y.Z`
 7. **Push git tag:** `git push origin vX.Y.Z`
 

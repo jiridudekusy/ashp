@@ -49,12 +49,16 @@ export default function App() {
   const [pendingCount, setPendingCount] = useState(0);
   const [sseConnected, setSseConnected] = useState(false);
   const [proxyConnected, setProxyConnected] = useState(false);
+  const [version, setVersion] = useState(null);
+  const [commit, setCommit] = useState(null);
   const api = useMemo(() => credentials ? createClient('', credentials) : null, [credentials]);
 
   useEffect(() => {
     if (!api) return;
     api.getStatus().then(s => {
       setProxyConnected(!!s.proxy?.connected || !!s.proxy?.running);
+      if (s.version) setVersion(s.version);
+      if (s.commit) setCommit(s.commit);
     }).catch(() => {});
     api.getApprovals().then(a => {
       setPendingCount(a.length);
@@ -83,7 +87,7 @@ export default function App() {
           <BrowserRouter>
             <ApprovalTracker events={events} setPendingCount={setPendingCount} />
             <Routes>
-              <Route element={<Layout pendingCount={pendingCount} proxyConnected={proxyConnected} onLogout={handleLogout} />}>
+              <Route element={<Layout pendingCount={pendingCount} proxyConnected={proxyConnected} onLogout={handleLogout} version={version} commit={commit} />}>
                 <Route index element={<Dashboard api={api} events={events} />} />
                 <Route path="rules" element={<Rules api={api} events={events} />} />
                 <Route path="logs" element={<Logs api={api} events={events} />} />

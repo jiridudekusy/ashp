@@ -22,11 +22,15 @@ import { readFileSync, existsSync } from 'node:fs';
 export default function statusRoutes({ proxyManager, rulesDAO, config, ipc }) {
   const r = Router();
   const startedAt = Date.now();
+  const version = process.env.ASHP_VERSION || 'dev';
+  const commit = process.env.ASHP_COMMIT || 'unknown';
 
   r.get('/status', async (req, res, next) => {
     try {
       const rules = await rulesDAO.list();
       res.json({
+        version,
+        commit,
         proxy: { ...proxyManager.getStatus(), connected: ipc?.connected ?? false },
         management: { uptime_ms: Date.now() - startedAt },
         rules_count: rules.length,

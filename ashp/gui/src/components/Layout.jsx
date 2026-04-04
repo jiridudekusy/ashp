@@ -7,10 +7,10 @@ import { Outlet } from 'react-router-dom';
 import { TopNav } from './TopNav.jsx';
 import styles from './Layout.module.css';
 
-export default function Layout({ pendingCount, proxyConnected, onLogout }) {
+export default function Layout({ pendingCount, proxyConnected, onLogout, version, commit }) {
   return (
     <div className={styles.layout}>
-      <TopNav pendingCount={pendingCount} proxyConnected={proxyConnected} onLogout={onLogout} />
+      <TopNav pendingCount={pendingCount} proxyConnected={proxyConnected} onLogout={onLogout} version={version} commit={commit} />
       <main className={styles.main}>
         <Outlet />
       </main>

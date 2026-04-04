@@ -100,3 +100,32 @@
 .logoutBtn:hover {
   background: var(--color-bg-hover);
 }
+
+.version {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+}
+
+.versionLink {
+  color: var(--color-text-muted);
+  text-decoration: none;
+}
+
+.versionLink:hover {
+  color: var(--color-accent);
+}
+
+.commitLink {
+  font-family: monospace;
+  font-size: 10px;
+  color: var(--color-text-muted);
+  opacity: 0.6;
+  text-decoration: none;
+}
+
+.commitLink:hover {
+  color: var(--color-accent);
+  opacity: 1;
+}
