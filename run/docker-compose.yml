@@ -15,6 +15,10 @@ services:
       - ASHP_LOG_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
       - ASHP_CA_KEY=dev-ca-key-change-in-production
       - ASHP_TRANSPARENT=true
+      # Set ASHP_TRANSPARENT_IP when container has multiple networks, to ensure
+      # dnsmasq catch-all resolves to the IP visible from sandbox containers.
+      # Without this, auto-detect may pick the wrong network's IP.
+      # - ASHP_TRANSPARENT_IP=172.30.0.2
 
   sandbox-transparent:
     build:

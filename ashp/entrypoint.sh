@@ -14,7 +14,8 @@ if command -v dnsmasq >/dev/null 2>&1; then
 
   DNSMASQ_EXTRA=""
   if [ "$ASHP_TRANSPARENT" = "true" ]; then
-    ASHP_IP=$(echo "$BIND_ADDRS" | head -1)
+    # ASHP_TRANSPARENT_IP overrides auto-detect (useful when container has multiple networks)
+    ASHP_IP="${ASHP_TRANSPARENT_IP:-$(echo "$BIND_ADDRS" | head -1)}"
     if [ -n "$ASHP_IP" ]; then
       # Catch-all: resolve all external domains to ASHP IP
       DNSMASQ_EXTRA="--address=/#/${ASHP_IP}"
