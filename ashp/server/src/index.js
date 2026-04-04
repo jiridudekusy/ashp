@@ -107,6 +107,8 @@ export async function startServer(flags = {}) {
         await sendAgentRulesReload();
         const agents = agentsDAO.listForProxy();
         ipc.send({ type: 'agents.reload', data: agents });
+        const ipMapping = agentsDAO.getIPMapping();
+        ipc.send({ type: 'agents.ipmapping', data: ipMapping });
       } catch (err) {
         console.error('[IPC] onConnect error:', err.message);
       }
@@ -151,6 +153,13 @@ export async function startServer(flags = {}) {
   if (config.proxy.hold_timeout) proxyArgs.push('--hold-timeout', String(config.proxy.hold_timeout));
   if (config.encryption?.ca_key) proxyArgs.push('--ca-pass', config.encryption.ca_key);
   if (config.encryption?.log_key) proxyArgs.push('--log-key', config.encryption.log_key);
+  if (config.transparent?.enabled) {
+    const portSpec = config.transparent.ports
+      .map(p => p.tls ? `${p.port}:tls` : String(p.port))
+      .join(',');
+    proxyArgs.push('--transparent-listen', config.transparent.listen || '0.0.0.0');
+    proxyArgs.push('--transparent-ports', portSpec);
+  }
   proxyArgs.push('--ca-dir', resolve(dataDir, 'ca'));
   proxyArgs.push('--log-dir', resolve(dataDir, 'logs'));
 

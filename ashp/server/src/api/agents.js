@@ -33,6 +33,8 @@ export default function agentsRoutes({ agentsDAO, ipc }) {
   async function sendAgentsReload() {
     const agents = agentsDAO.listForProxy();
     ipc.send({ type: 'agents.reload', data: agents });
+    const mapping = agentsDAO.getIPMapping();
+    ipc.send({ type: 'agents.ipmapping', data: mapping });
   }
 
   r.get('/', async (req, res, next) => {
