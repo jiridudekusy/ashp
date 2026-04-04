@@ -15,5 +15,13 @@
   "encryption": { "log_key": "env:ASHP_LOG_KEY", "ca_key": "env:ASHP_CA_KEY" },
   "gui": { "dist_path": "/app/gui/dist" },
   "ipc_socket": "/tmp/ashp.sock",
-  "webhooks": []
+  "webhooks": [],
+  "transparent": {
+    "enabled": true,
+    "listen": "0.0.0.0",
+    "ports": [
+      { "port": 443, "tls": true },
+      { "port": 80, "tls": false }
+    ]
+  }
 }

@@ -40,7 +40,7 @@ VOLUME /etc/ashp
 COPY entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
-EXPOSE 8080 3000 53/udp 53/tcp
+EXPOSE 80 443 3000 8080 53/udp 53/tcp
 ENV NODE_ENV=production
 
 ENTRYPOINT ["tini", "--", "/app/entrypoint.sh"]

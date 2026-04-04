@@ -14,8 +14,28 @@ services:
       - ASHP_DB_KEY=dev-db-key-change-in-production
       - ASHP_LOG_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
       - ASHP_CA_KEY=dev-ca-key-change-in-production
+      - ASHP_TRANSPARENT=true
+
+  sandbox-transparent:
+    build:
+      context: ../sandbox
+    container_name: ashp-sandbox-transparent
+    networks:
+      - ashp-sandbox
+    volumes:
+      - transparent_home:/home/dev
+      - ../sandbox/workspace:/workspace
+    environment:
+      - ASHP_AGENT_NAME=agent-transparent
+      - ASHP_AGENT_TOKEN=${ASHP_TRANSPARENT_AGENT_TOKEN:-changeme}
+      - NODE_EXTRA_CA_CERTS=/home/dev/ashp-ca.crt
+    stdin_open: true
+    tty: true
 
 networks:
   ashp-sandbox:
     name: ashp-sandbox
     internal: true
+
+volumes:
+  transparent_home:
