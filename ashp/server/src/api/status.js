@@ -33,6 +33,10 @@ export default function statusRoutes({ proxyManager, rulesDAO, config, ipc }) {
         rules_source: config.rules.source,
         db_path: config.database.path,
         default_behavior: config.default_behavior,
+        transparent: {
+          enabled: config.transparent?.enabled || false,
+          ports: config.transparent?.ports || [],
+        },
       });
     } catch (e) { next(e); }
   });
