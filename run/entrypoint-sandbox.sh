@@ -28,4 +28,19 @@ if [ ! -f /home/dev/ashp-ca.crt ]; then
   echo "WARNING: Could not fetch ASHP CA certificate. HTTPS interception will fail."
 fi
 
+# Register IP with ASHP for transparent proxy agent identification
+MY_IP=$(hostname -i 2>/dev/null | tr ' ' '\n' | grep -v '127.0.0' | head -1)
+if [ -n "$MY_IP" ] && [ -n "$ASHP_AGENT_NAME" ] && [ -n "$ASHP_AGENT_TOKEN" ]; then
+  for i in $(seq 1 10); do
+    if curl -sf --noproxy '*' -X POST http://ashp:3000/api/agents/register-ip \
+      -H 'Content-Type: application/json' \
+      -d "{\"name\":\"$ASHP_AGENT_NAME\",\"token\":\"$ASHP_AGENT_TOKEN\",\"ip_address\":\"$MY_IP\"}" \
+      2>/dev/null; then
+      echo "Registered IP $MY_IP for agent $ASHP_AGENT_NAME"
+      break
+    fi
+    sleep 1
+  done
+fi
+
 exec "$@"
