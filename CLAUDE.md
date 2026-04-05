@@ -92,7 +92,7 @@ Transparent proxy config block (optional):
   }
 }
 ```
-Set `ASHP_TRANSPARENT=true` env var to enable dnsmasq catch-all. Agents register their IP via `POST /api/agents/register-ip` (authenticated with agent token).
+Set `ASHP_TRANSPARENT=true` env var to enable dnsmasq catch-all. Set `ASHP_TRANSPARENT_IP` when container is on multiple networks (otherwise auto-detect picks wrong IP). Agents register their IP via `POST /api/agents/register-ip` (authenticated with agent token).
 
 ## Docker
 
@@ -102,6 +102,7 @@ Set `ASHP_TRANSPARENT=true` env var to enable dnsmasq catch-all. Agents register
 - `sandbox/` directory: standalone Claude Code sandbox container (joins `ashp-sandbox` network, requires ASHP running first)
 - Sandbox entrypoint auto-fetches CA cert from `http://ashp:3000/api/ca/certificate`
 - No Go installed locally — Go builds happen inside Docker only
+- Version display: `ASHP_VERSION` and `ASHP_COMMIT` env vars (set via `--build-arg VERSION=vX.Y.Z --build-arg COMMIT=...` at Docker build time). Shown in GUI TopNav and `/api/status`.
 
 ## Project Conventions
 

@@ -65,6 +65,14 @@ Enable in `ashp.json`:
 
 Set `ASHP_TRANSPARENT=true` env var on the ASHP container for dnsmasq catch-all.
 
+When the ASHP container is on multiple Docker networks, dnsmasq auto-detect may pick the wrong IP (e.g. from the default network instead of the sandbox network). Set `ASHP_TRANSPARENT_IP` to the IP visible from sandbox containers:
+
+```yaml
+environment:
+  ASHP_TRANSPARENT: "true"
+  ASHP_TRANSPARENT_IP: "172.30.0.2"  # ASHP's IP on the sandbox network
+```
+
 Sandbox containers register their IP via:
 ```bash
 curl -X POST http://ashp:3000/api/agents/register-ip \
@@ -73,6 +81,22 @@ curl -X POST http://ashp:3000/api/agents/register-ip \
 ```
 
 Both modes (explicit proxy on :8080 and transparent on :80/:443) can run simultaneously.
+
+### Version Display
+
+The GUI and `/api/status` endpoint display ASHP version and git commit. These are injected at Docker build time:
+
+```bash
+docker build \
+  --build-arg VERSION=v0.4.2 \
+  --build-arg COMMIT=$(git rev-parse --short HEAD) \
+  -t jiridudekusy/ashp:v0.4.2 .
+```
+
+| Build Arg / Env Var | Description |
+|---------------------|-------------|
+| `VERSION` / `ASHP_VERSION` | Release version shown in GUI and API (default: `dev`) |
+| `COMMIT` / `ASHP_COMMIT` | Git commit hash shown in GUI and API (default: `unknown`) |
 
 ## Architecture
 
@@ -132,7 +156,7 @@ The config file is JSON. All `env:VAR_NAME` values are resolved from environment
 | `management.listen` | API/GUI bind address |
 | `management.auth` | Map of `username: password` for Basic auth on management API |
 | `rules.source` | `"db"` (SQLite, editable via API) or `"file"` (read-only JSON file) |
-| `default_behavior` | Action for unmatched requests: `"deny"`, `"hold"` |
+| `default_behavior` | Action for unmatched requests: `"deny"`, `"hold"`, `"queue"` |
 | `database.path` | SQLite database file path |
 | `database.encryption_key` | SQLite encryption key (supports `env:VAR`) |
 | `encryption.log_key` | 32-byte hex key for body log encryption (supports `env:VAR`) |
@@ -146,7 +170,7 @@ Rules control what happens to each proxied request. They are evaluated by priori
 | Field | Description |
 |-------|-------------|
 | `url_pattern` | Regex matched against the full URL |
-| `methods` | HTTP methods to match (empty = all) |
+| `methods` | HTTP methods to match (empty or `["*"]` = all) |
 | `action` | `"allow"` or `"deny"` |
 | `priority` | Higher = evaluated first |
 | `enabled` | Toggle without deleting |

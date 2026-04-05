@@ -7,7 +7,7 @@
     "auth": { "admin": "change-me-admin-password" }
   },
   "rules": { "source": "db", "file": "rules.json" },
-  "default_behavior": "deny",
+  "default_behavior": "hold",
   "logging": { "request_body": "full", "response_body": "truncate:65536", "retention_days": 30 },
   "database": { "path": "data/ashp.db", "encryption_key": "env:ASHP_DB_KEY" },
   "encryption": { "log_key": "env:ASHP_LOG_KEY", "ca_key": "env:ASHP_CA_KEY" },
